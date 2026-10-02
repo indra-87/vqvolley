@@ -344,27 +344,41 @@ const PREF_WEIGHT_MEMBER = 10;
 const PREF_WEIGHT_GUEST = 9;
 const prefWeight = p => p.guest ? PREF_WEIGHT_GUEST : PREF_WEIGHT_MEMBER;
 
-// 희망 반영 수 (팀 나누기 평가용, 노이즈 없음)
-function bestPrefScore(players) {
-  const on = players.slice(0, 9); // 평가는 대략치면 충분
-  const court = placeOnCourt(on, (p, i) => prefers(p, i) ? -prefWeight(p) : 0);
-  return court.reduce((s, p, i) => s + (p && prefers(p, i) ? prefWeight(p) : 0), 0);
+// 팀 나누기 평가: 포지션마다 그 포지션을 원하는 사람이 팀 안에 있을수록 점수를 얻되,
+// 같은 포지션 희망자가 한 팀에 몰리면 점수가 줄어든다 (두 번째부터 0.6배, 세 번째는 0.36배...).
+// → 희망자가 적은 포지션은 팀마다 한 명씩 흩어지는 쪽이 높은 점수. 팀 인원이 9명을 넘어도 전원을 반영한다.
+const SPREAD_DECAY = 0.6;
+function teamScore(players) {
+  const by = POS.map(() => []);
+  players.forEach(p => (p.prefs || []).forEach(x => { const i = POS.indexOf(x); if (i >= 0) by[i].push(prefWeight(p) / PREF_WEIGHT_MEMBER); }));
+  let sc = 0;
+  by.forEach(ws => { ws.sort((a, b) => b - a); ws.forEach((w, j) => { sc += w * Math.pow(SPREAD_DECAY, j); }); });
+  return sc;
 }
 
 // 1) 한 성별의 참석자를 V/Q로 나누기
-function splitTeams(players, tries = 400) {
-  if (players.length === 0) return { V: [], Q: [] };
-  let best = -1, cands = [];
-  for (let t = 0; t < tries; t++) {
+//    무작위 시작 → V/Q 사이 맞교환으로 점수가 오르는 동안 개선 (여러 번 반복) → 최고점 후보 중 무작위 선택
+function splitTeams(players, starts = 40) {
+  const n = players.length;
+  if (n === 0) return { V: [], Q: [] };
+  const EPS = 1e-9;
+  let best = -Infinity, cands = [];
+  for (let t = 0; t < starts; t++) {
     const s = shuffle(players);
-    const half = Math.ceil(s.length / 2);
-    // 홀수일 때 V/Q 중 어느 쪽이 한 명 많을지도 랜덤
-    const flip = Math.random() < 0.5;
-    const A = s.slice(0, flip ? half : s.length - half), B = s.slice(A.length);
-    // 9명 초과 팀은 희망 반영 여지가 커서 점수 왜곡 → 9명까지만 평가
-    const score = bestPrefScore(shuffle(A)) + bestPrefScore(shuffle(B));
-    if (score > best) { best = score; cands = [[A, B]]; }
-    else if (score === best) cands.push([A, B]);
+    const sizeA = n % 2 === 0 ? n / 2 : (Math.random() < 0.5 ? Math.ceil(n / 2) : Math.floor(n / 2));
+    let A = s.slice(0, sizeA), B = s.slice(sizeA);
+    let cur = teamScore(A) + teamScore(B);
+    for (let pass = 0; pass < 60; pass++) {
+      let improved = false;
+      for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) {
+        const A2 = A.slice(), B2 = B.slice(); [A2[i], B2[j]] = [B[j], A[i]];
+        const sc = teamScore(A2) + teamScore(B2);
+        if (sc > cur + EPS) { A = A2; B = B2; cur = sc; improved = true; }
+      }
+      if (!improved) break;
+    }
+    if (cur > best + EPS) { best = cur; cands = [[A, B]]; }
+    else if (Math.abs(cur - best) <= EPS) cands.push([A, B]);
   }
   const [A, B] = cands[Math.floor(Math.random() * cands.length)];
   return { V: A, Q: B };
