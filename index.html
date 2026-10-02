@@ -933,7 +933,7 @@ function renderQuick() {
     if (n) resultBlock(res, 'quick' + g, [
       { id: 'cur', label: `${n}세트`, draw: () => drawQuick(g), fname: `${gName(g)}_${n}세트` },
       ...(n > 1 ? [{ id: 'all', label: `1~${n}세트 전체`, draw: () => drawQuickAll(g), fname: `${gName(g)}_즉석배정_전체` }] : [])
-    ], [[...['V', 'Q'].filter(side => S.quick && S.quick[g] && S.quick[g][side] && S.quick[g][side].length).map(side =>
+    ], !canEdit() ? [] : [[...['V', 'Q'].filter(side => S.quick && S.quick[g] && S.quick[g][side] && S.quick[g][side].length).map(side =>
       el('button', { class: 'btn ghost sm', on: { click: () => openEditor({ title: `${gName(g).slice(0, 2)} ${side}팀 · 즉석 배정`, start: n - 1, getSets: () => S.quick[g][side] }) } }, `${g === '여' ? '여자' : '남자'} ${side}팀 직접 수정`))]]);
   });
 }
@@ -953,8 +953,9 @@ function regenButtons(sg) {
   return rows;
 }
 // 직접 수정 버튼: 팀마다 한 개 (세트 배치)
+const canEdit = () => !!(me && me.is_admin && me.can_edit);   // 직접 수정은 허용된 관리자만
 function editButtons(sg) {
-  if (!sg.length) return [];
+  if (!sg.length || !canEdit()) return [];
   const rows = [el('p', { class: 'hint', style: 'margin:8px 0 -2px' }, '직접 수정 (끌어서 자리 바꾸기)')];
   sg.forEach(g => {
     const b = [];
@@ -1127,6 +1128,7 @@ const E = { cfg: null, idx: 0, undo: [], sel: null };
 const curSet = () => E.cfg.getSets()[E.idx];
 const pName = p => p.name + (p.guest ? '(G)' : '');
 function openEditor(cfg) {
+  if (!canEdit()) return;
   const n = cfg.getSets().length; if (!n) return;
   E.cfg = cfg; E.idx = Math.min(cfg.start == null ? 0 : cfg.start, n - 1); E.undo = []; E.sel = null;
   $('#eTitle').textContent = cfg.title; $('#editor').classList.remove('hidden'); document.body.style.overflow = 'hidden';
