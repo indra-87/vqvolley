@@ -30,12 +30,13 @@ p{margin:0}
 .hidden{display:none!important}
 
 /* 로그인 */
-.login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:24px;max-width:420px;margin:0 auto}
+.login{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:24px;max-width:420px;margin:0 auto}
 .brand{display:flex;align-items:baseline;gap:2px;font-weight:900;font-size:64px;letter-spacing:-.04em;line-height:1}
 .brand .bv{color:var(--v)} .brand .bq{color:var(--q);-webkit-text-stroke:1.5px var(--q-ink)}
 .login p.lead{margin:12px 0 28px;color:var(--mute)}
 .codebox{display:flex;gap:8px}
-.codebox input{flex:1;font-size:28px;letter-spacing:.3em;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-variant-numeric:tabular-nums}
+.codebox .btn{flex:none}
+.codebox input{flex:1 1 auto;min-width:0;width:100%;font-size:28px;letter-spacing:.3em;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-variant-numeric:tabular-nums}
 .codebox input:focus{border-color:var(--v);outline:none}
 .err{color:var(--err);font-size:14px;margin-top:8px;min-height:21px}
 
@@ -105,6 +106,10 @@ dialog .in{padding:18px;display:flex;flex-direction:column;gap:14px}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{border:0;background:#fff;padding:7px 14px;font-weight:650}
 .seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.result .seg{margin-bottom:8px}
+.qcard h2{display:flex;justify-content:space-between;align-items:baseline}
+#syncStat{font-size:12px;color:var(--mute);margin-left:6px}
+#syncStat.bad{color:var(--err)}
 
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
@@ -130,7 +135,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 <div id="appView" class="hidden">
   <header class="top">
     <div class="bar">
-      <div><span class="who" id="whoName"></span> <span class="mute" id="whoRole"></span></div>
+      <div><span class="who" id="whoName"></span> <span class="mute" id="whoRole"></span><span id="syncStat"></span></div>
       <button class="btn ghost sm" id="logoutBtn">나가기</button>
     </div>
     <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -170,12 +175,12 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
       </div>
       <div class="card">
         <div class="row" style="justify-content:space-between;margin-bottom:8px">
-          <strong>회원</strong><span class="mute">남 <span class="count" id="cntM">0</span> · 여 <span class="count" id="cntF">0</span></span>
+          <strong>회원</strong><span class="mute">여 <span class="count" id="cntF">0</span> · 남 <span class="count" id="cntM">0</span></span>
         </div>
-        <p class="mute" style="margin-bottom:6px">남자</p>
-        <div class="chips" id="memM"></div>
-        <p class="mute" style="margin:12px 0 6px">여자</p>
+        <p class="mute" style="margin-bottom:6px">여자</p>
         <div class="chips" id="memF"></div>
+        <p class="mute" style="margin:12px 0 6px">남자</p>
+        <div class="chips" id="memM"></div>
       </div>
       <div class="card">
         <strong>게스트</strong>
@@ -193,7 +198,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         <button class="btn" id="splitBtn">팀 나누기</button>
       </div>
       <div id="teamBox"></div>
-      <div class="result hidden" id="teamImgBox"><img id="teamImg" alt="팀 편성 결과"><div class="row" style="margin-top:8px"><button class="btn q" data-share="team">이미지 저장·공유</button></div></div>
+      <div class="result hidden" id="teamImgBox"></div>
     </section>
 
     <!-- 세트 -->
@@ -215,22 +220,12 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
     <section class="panel" data-tab="quick">
       <div>
         <h2>즉석 배정</h2>
-        <p class="mute">팀은 미리 나눠두고, 경기 당일 세트를 시작할 때마다 그 세트의 포지션을 뽑아요. 앞 세트 기록을 보고 같은 포지션이 반복되지 않게, 교체 대기도 돌아가며 정합니다.</p>
+        <p class="mute">팀은 미리 나눠두고, 경기 당일 세트를 시작할 때마다 그 세트의 포지션을 뽑아요. 여자부와 남자부는 따로 진행돼요. 앞 세트 기록을 보고 같은 포지션이 반복되지 않게, 교체 대기도 돌아가며 정합니다.</p>
       </div>
       <div class="row">
         <div class="seg" id="quickMode"><button aria-pressed="true" data-v="pref">희망 반영</button><button aria-pressed="false" data-v="rand">희망 무시</button></div>
       </div>
-      <div class="row">
-        <button class="btn" id="quickBtn">1세트 배정</button>
-        <button class="btn ghost hidden" id="quickRedo">이 세트 다시 뽑기</button>
-        <button class="btn ghost hidden" id="quickReset">처음부터</button>
-      </div>
-      <div class="result hidden" id="quickImgBox"><img id="quickImg" alt="즉석 배정 결과">
-        <div class="row" style="margin-top:8px"><button class="btn q" data-share="quick">이 세트 이미지 저장·공유</button><button class="btn ghost" id="quickAllBtn">지금까지 전체 보기</button></div>
-      </div>
-      <div class="result hidden" id="quickAllBox"><img id="quickAllImg" alt="즉석 배정 전체 세트">
-        <div class="row" style="margin-top:8px"><button class="btn q" data-share="quickAll">전체 이미지 저장·공유</button></div>
-      </div>
+      <div id="quickBox" style="display:flex;flex-direction:column;gap:16px"></div>
     </section>
 
     <!-- 회원 관리 -->
@@ -255,7 +250,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 <dialog id="memDlg"><div class="in">
   <h2 id="memDlgTitle">회원 정보</h2>
   <input class="inp" id="mName" placeholder="이름">
-  <div class="seg" id="mGender"><button data-v="남" aria-pressed="true">남</button><button data-v="여" aria-pressed="false">여</button></div>
+  <div class="seg" id="mGender"><button data-v="여" aria-pressed="false">여</button><button data-v="남" aria-pressed="true">남</button></div>
   <input class="inp" id="mCode" inputmode="numeric" maxlength="4" placeholder="개인확인코드 4자리">
   <label class="ck"><input type="checkbox" id="mAdmin"> 관리자</label>
   <label class="ck"><input type="checkbox" id="mActive" checked> 활동 중 (끄면 로그인과 참석 목록에서 빠져요)</label>
@@ -321,11 +316,17 @@ function placeOnCourt(players, costFn) {
 
 const prefers = (p, i) => (p.prefs || []).includes(POS[i]);
 
+// 희망 포지션 반영 가중치: 정회원을 게스트보다 조금 더 우선한다.
+// 숫자가 클수록 희망을 강하게 반영 (같은 포지션 반복 감점은 6~8)
+const PREF_WEIGHT_MEMBER = 10;
+const PREF_WEIGHT_GUEST = 9;
+const prefWeight = p => p.guest ? PREF_WEIGHT_GUEST : PREF_WEIGHT_MEMBER;
+
 // 희망 반영 수 (팀 나누기 평가용, 노이즈 없음)
 function bestPrefScore(players) {
   const on = players.slice(0, 9); // 평가는 대략치면 충분
-  const court = placeOnCourt(on, (p, i) => prefers(p, i) ? -1 : 0);
-  return court.reduce((s, p, i) => s + (p && prefers(p, i) ? 1 : 0), 0);
+  const court = placeOnCourt(on, (p, i) => prefers(p, i) ? -prefWeight(p) : 0);
+  return court.reduce((s, p, i) => s + (p && prefers(p, i) ? prefWeight(p) : 0), 0);
 }
 
 // 1) 한 성별의 참석자를 V/Q로 나누기
@@ -370,7 +371,7 @@ function nextSet(players, history = [], usePref = true) {
   if (prev) prev.court.forEach((p, i) => { if (p) last[p.key] = i; });
   const { court, bench } = pickBench(players, benchCount);
   const pos = placeOnCourt(court, (p, i) =>
-    (usePref && prefers(p, i) ? -10 : 0) + count[p.key][i] * 6 + (last[p.key] === i ? 8 : 0) + Math.random() * 3);
+    (usePref && prefers(p, i) ? -prefWeight(p) : 0) + count[p.key][i] * 6 + (last[p.key] === i ? 8 : 0) + Math.random() * 3);
   return { court: pos, bench };
 }
 
@@ -418,10 +419,60 @@ async function rpc(fn, args) {
 }
 
 // ===== 상태 =====
+const GORDER = ['여', '남'];   // 여자 게임을 먼저 하므로 여자부가 위
+const gName = g => g === '여' ? '여자부' : '남자부';
 let me = null, code = null, members = [];
-let S = store.get('vq_state', null) || {};
-S = Object.assign({ date: new Date().toLocaleDateString('sv-SE'), attend: [], guests: [], teams: null, sets: null, quick: null }, S);
-const save = () => store.set('vq_state', S);
+function normalize(d) {
+  d = Object.assign({ date: new Date().toLocaleDateString('sv-SE'), attend: [], guests: [], teams: null, sets: null, quick: null }, d || {});
+  if (d.quick && d.quick.teams) d.quick = null; // 예전 형식
+  return d;
+}
+let S = normalize(store.get('vq_state', null));
+
+// 작업 상태는 휴대폰에 먼저 저장하고, 관리자면 서버(관리자 공용)에도 저장
+let serverVersion = store.get('vq_ver', 0), syncTimer = null, syncing = false, dirty = false;
+function setSync(t, bad) { const e = $('#syncStat'); if (e) { e.textContent = t; e.classList.toggle('bad', !!bad); } }
+function save() {
+  store.set('vq_state', S);
+  if (!me || !me.is_admin) return;
+  dirty = true; setSync('저장 중');
+  clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 700);
+}
+async function pushState() {
+  if (syncing) { clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 500); return; }
+  syncing = true; dirty = false;
+  try {
+    const r = await rpc('vq_admin_save_state', { p_code: code, p_data: S, p_version: serverVersion });
+    if (r.conflict) {
+      applyServer(r);
+      toast(`${r.updated_by || '다른 관리자'} 님이 먼저 바꾼 내용으로 맞췄어요. 방금 한 작업을 다시 해주세요`);
+    } else { serverVersion = r.version; store.set('vq_ver', serverVersion); setSync('공유 저장됨'); }
+  } catch (e) {
+    dirty = true; setSync('서버 저장 안 됨, 다시 시도 중', true);
+    clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 10000);
+  }
+  syncing = false;
+  if (dirty) { clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 300); }
+}
+function applyServer(r) {
+  S = normalize(r.data); serverVersion = r.version;
+  store.set('vq_state', S); store.set('vq_ver', serverVersion);
+  setSync('공유 저장됨'); renderAll();
+}
+async function pullState(first) {
+  if (!me || !me.is_admin || dirty || syncing) return;
+  try {
+    const r = await rpc('vq_admin_get_state', { p_code: code });
+    if (first && r.version === 0) { save(); return; }   // 서버가 비어 있으면 이 기기 내용을 올림
+    if (r.version !== serverVersion) {
+      applyServer(r);
+      if (!first) toast(`${r.updated_by || '다른 관리자'} 님이 바꾼 내용을 불러왔어요`);
+    } else setSync('공유 저장됨');
+  } catch { setSync('서버 연결 안 됨', true); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullState(); });
+setInterval(() => { if (document.visibilityState === 'visible') pullState(); }, 20000);
+function renderAll() { renderAttend(); renderTeams(); renderSaved(); }
 
 // 참가자 객체: {key, name, gender, prefs, guest}
 function memberPlayer(m) { return { key: 'm' + m.id, name: m.name, gender: m.gender, prefs: m.prefs || [], guest: false }; }
@@ -470,7 +521,10 @@ async function login(c) {
   if (me.is_admin) await loadMembers();
   enterApp();
 }
-$('#logoutBtn').addEventListener('click', () => { store.set('vq_code', null); location.reload(); });
+$('#logoutBtn').addEventListener('click', async () => {
+  if (dirty) { clearTimeout(syncTimer); await pushState(); }
+  store.set('vq_code', null); location.reload();
+});
 
 async function loadMembers() { members = await rpc('vq_admin_list', { p_code: code }); }
 
@@ -484,7 +538,7 @@ function enterApp() {
   $('#tabs').innerHTML = '';
   if (tabs.length > 1) tabs.forEach(([id, label]) => $('#tabs').append(el('button', { role: 'tab', 'data-id': id, on: { click: () => showTab(id) } }, label)));
   renderMine();
-  if (me.is_admin) { renderAttend(); renderTeams(); renderMemberList(); renderSaved(); }
+  if (me.is_admin) { renderAttend(); renderTeams(); renderMemberList(); renderSaved(); pullState(true); }
   showTab(me.is_admin ? store.get('vq_tab', 'attend') : 'me');
 }
 function showTab(id) {
@@ -542,7 +596,7 @@ $('#gameDate').addEventListener('change', e => { S.date = e.target.value; save()
 
 function renderAttend() {
   $('#gameDate').value = S.date;
-  ['남', '여'].forEach(g => {
+  GORDER.forEach(g => {
     const box = g === '남' ? $('#memM') : $('#memF'); box.innerHTML = '';
     members.filter(m => m.active && m.gender === g).forEach(m => {
       const k = 'm' + m.id, on = S.attend.includes(k);
@@ -609,7 +663,7 @@ function openGuestDialog(g) {
   const isNew = !S.guests.includes(g);
   const sel = (g.prefs || []).slice(); let gender = g.gender || '남';
   $('#prefDlgTitle').innerHTML = '';
-  const seg = el('div', { class: 'seg' }, ...['남', '여'].map(v => el('button', { type: 'button', 'aria-pressed': String(v === gender), on: { click: e => {
+  const seg = el('div', { class: 'seg' }, ...GORDER.map(v => el('button', { type: 'button', 'aria-pressed': String(v === gender), on: { click: e => {
     gender = v; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
   } } }, v)));
   $('#prefDlgTitle').append(`게스트 ${g.name} `, seg);
@@ -637,7 +691,7 @@ async function doSplit() {
   $('#splitBtn').disabled = false;
   if (!a.length) { toast('참석 탭에서 참석자를 먼저 넣어주세요'); showTab('attend'); return false; }
   S.teams = {};
-  ['남', '여'].forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) S.teams[g] = splitTeams(ps); });
+  GORDER.forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) S.teams[g] = splitTeams(ps); });
   S.sets = null; S.quick = null; save();
   renderTeams(); renderSaved();
   return true;
@@ -652,7 +706,7 @@ function renderTeams() {
     el('p', { style: 'margin-bottom:4px;font-weight:700' }, '팀이 없는 참석자'),
     el('p', { class: 'mute', style: 'margin-bottom:8px' }, '누르면 인원이 적은 팀으로 들어가요.'),
     el('div', { class: 'chips' }, ...loose.map(p => el('button', { class: 'chip' + (p.guest ? ' guest' : ''), on: { click: () => addLoose(p) } }, `${p.name} ${p.gender}`)))));
-  ['남', '여'].forEach(g => {
+  GORDER.forEach(g => {
     const t = S.teams[g]; if (!t || !(t.V.length + t.Q.length)) return;
     box.append(el('h2', { style: 'font-size:17px;margin:4px 0 8px' }, g === '남' ? '남자부' : '여자부'));
     box.append(el('div', { class: 'teams' }, ...['V', 'Q'].map(side => el('div', { class: 'team ' + side },
@@ -662,7 +716,37 @@ function renderTeams() {
         el('button', { class: 'rm', 'aria-label': p.name + ' 빼기', title: '팀에서 빼기', on: { click: () => removePlayer(g, side, p.key) } }, '×')); }))
     ))));
   });
-  drawImage('team');
+  const gs = presentGenders();
+  resultBlock($('#teamImgBox'), 'team', [
+    ...(gs.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawTeam(gs), fname: '팀편성' }] : []),
+    ...gs.map(g => ({ id: g, label: gName(g), draw: () => drawTeam([g]), fname: '팀편성_' + gName(g) }))
+  ]);
+}
+function presentGenders() { return GORDER.filter(g => S.teams && S.teams[g] && S.teams[g].V.length + S.teams[g].Q.length); }
+
+// 결과 이미지 영역: 보기 전환(전체/여자부/남자부 등) + 미리보기 + 저장·공유
+const viewSel = {};
+function resultBlock(box, key, views, extra = []) {
+  box.innerHTML = '';
+  if (!views.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  if (!views.some(v => v.id === viewSel[key])) viewSel[key] = views[0].id;
+  const img = el('img', { alt: '결과 이미지' });
+  const draw = async () => {
+    const v = views.find(v => v.id === viewSel[key]);
+    try { await document.fonts.load(`700 16px "Pretendard Variable"`); } catch {}
+    const c = v.draw(); canvases[key] = { c, fname: v.fname };
+    img.src = c.toDataURL('image/png');
+  };
+  if (views.length > 1) {
+    const seg = el('div', { class: 'seg' }, ...views.map(v => el('button', { type: 'button', 'aria-pressed': String(v.id === viewSel[key]), on: { click: e => {
+      viewSel[key] = v.id; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); draw();
+    } } }, v.label)));
+    box.append(seg);
+  }
+  box.append(img, el('div', { class: 'row', style: 'margin-top:8px' },
+    el('button', { class: 'btn q', on: { click: () => shareImage(key) } }, '이미지 저장·공유'), ...extra));
+  draw();
 }
 // 팀 구성이 바뀌면 미리 짠 세트 배치는 무효. 즉석 배정 기록은 사람 기준이라 유지
 function movePlayer(g, from, key) {
@@ -682,11 +766,11 @@ function addLoose(p) {
   if (!S.teams[p.gender]) S.teams[p.gender] = { V: [], Q: [] };
   const t = S.teams[p.gender], side = t.V.length < t.Q.length ? 'V' : t.Q.length < t.V.length ? 'Q' : (Math.random() < .5 ? 'V' : 'Q');
   t[side].push(p); S.sets = null; save(); renderTeams(); renderSaved();
-  toast(`${p.name} → ${p.gender === '남' ? '남자' : '여자'} ${side}팀`);
+  toast(`${p.name} → ${gName(p.gender)} ${side}팀`);
 }
 function teamList() { // [{label, side, players}]
   const out = [];
-  ['남', '여'].forEach(g => { const t = S.teams && S.teams[g]; if (!t) return;
+  GORDER.forEach(g => { const t = S.teams && S.teams[g]; if (!t) return;
     ['V', 'Q'].forEach(side => out.push({ g, side, label: `${g === '남' ? '남자' : '여자'} ${side}팀`, players: t[side].map(freshen) })); });
   return out;
 }
@@ -702,43 +786,58 @@ $('#setsBtn').addEventListener('click', async () => {
   S.sets = teamList().map(t => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) }));
   save(); renderSaved();
 });
-// ===== 즉석 (당일 세트마다) =====
-// S.quick = { teams: { [label]: { side, g, history: [{court, bench, mode}] } } }
+// ===== 즉석 (당일 세트마다, 성별 따로) =====
+// S.quick = { 여: { V: [세트...], Q: [세트...] }, 남: {...} }, 세트 = {court, bench, mode}
 let quickMode = 'pref';
 $('#quickMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; quickMode = b.dataset.v;
   $('#quickMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
-function quickSetNo() { return S.quick ? Math.max(0, ...Object.values(S.quick.teams).map(t => t.history.length)) : 0; }
-async function quickNext(redo) {
-  if (!(await ensureTeams())) return;
-  if (!S.quick) S.quick = { teams: {} };
-  const n = quickSetNo(), target = redo ? n : n + 1;
-  teamList().forEach(t => {
-    if (!t.players.length) return;
-    const q = S.quick.teams[t.label] || (S.quick.teams[t.label] = { side: t.side, g: t.g, history: [] });
-    while (q.history.length >= target) q.history.pop();
-    while (q.history.length < target - 1) q.history.push({ court: Array(9).fill(null), bench: [] }); // 중간에 생긴 팀
-    q.history.push({ ...nextSet(t.players, q.history, quickMode === 'pref'), mode: quickMode });
+function quickSetNo(g) { const q = S.quick && S.quick[g]; return q ? Math.max(0, ...Object.values(q).map(h => h.length)) : 0; }
+function quickNext(g, redo) {
+  if (!S.quick) S.quick = {};
+  const q = S.quick[g] || (S.quick[g] = {});
+  const n = quickSetNo(g), target = redo ? n : n + 1;
+  teamList().filter(t => t.g === g && t.players.length).forEach(t => {
+    const h = q[t.side] || (q[t.side] = []);
+    while (h.length >= target) h.pop();
+    while (h.length < target - 1) h.push({ court: Array(9).fill(null), bench: [] }); // 중간에 생긴 팀
+    h.push({ ...nextSet(t.players, h, quickMode === 'pref'), mode: quickMode });
   });
-  $('#quickAllBox').classList.add('hidden');
-  save(); renderSaved();
+  viewSel['quick' + g] = 'cur';
+  save(); renderQuick();
 }
-$('#quickBtn').addEventListener('click', () => quickNext(false));
-$('#quickRedo').addEventListener('click', () => quickNext(true));
-$('#quickReset').addEventListener('click', () => { if (confirm('즉석 배정 기록을 지우고 1세트부터 다시 할까요?')) { S.quick = null; save(); renderSaved(); } });
-$('#quickAllBtn').addEventListener('click', () => { $('#quickAllBox').classList.remove('hidden'); drawImage('quickAll'); });
+function renderQuick() {
+  const box = $('#quickBox'); if (!box) return; box.innerHTML = '';
+  const gs = presentGenders();
+  if (!gs.length) {
+    box.append(el('div', { class: 'card' }, el('p', { class: 'mute', style: 'margin-bottom:10px' }, '먼저 팀을 나눠주세요.'),
+      el('button', { class: 'btn', on: { click: async () => { if (await doSplit()) showTab('quick'); } } }, '팀 나누기')));
+    return;
+  }
+  gs.forEach(g => {
+    const n = quickSetNo(g);
+    const res = el('div', { class: 'result' });
+    box.append(el('div', { class: 'card qcard' },
+      el('h2', {}, gName(g), el('span', { class: 'mute' }, n ? `${n}세트까지 배정` : '')),
+      el('div', { class: 'row', style: 'margin:10px 0' },
+        el('button', { class: 'btn', on: { click: () => quickNext(g, false) } }, `${n + 1}세트 배정`),
+        n ? el('button', { class: 'btn ghost', on: { click: () => quickNext(g, true) } }, '이 세트 다시 뽑기') : null,
+        n ? el('button', { class: 'btn ghost', on: { click: () => {
+          if (confirm(`${gName(g)} 즉석 배정 기록을 지우고 1세트부터 다시 할까요?`)) { delete S.quick[g]; save(); renderQuick(); }
+        } } }, '처음부터') : null),
+      res));
+    if (n) resultBlock(res, 'quick' + g, [
+      { id: 'cur', label: `${n}세트`, draw: () => drawQuick(g), fname: `${gName(g)}_${n}세트` },
+      ...(n > 1 ? [{ id: 'all', label: `1~${n}세트 전체`, draw: () => drawQuickAll(g), fname: `${gName(g)}_즉석배정_전체` }] : [])
+    ]);
+  });
+}
 function renderSaved() {
-  const sb = $('#setsImgBox');
-  if (S.sets) {
-    sb.classList.remove('hidden'); sb.innerHTML = '';
-    sb.append(el('img', { id: 'setsImg', alt: '세트별 포지션 결과' }), el('div', { class: 'row', style: 'margin-top:8px' },
-      el('button', { class: 'btn q', on: { click: () => shareImage('sets') } }, '이미지 저장·공유'),
-      el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '다시 배치')));
-    drawImage('sets');
-  } else sb.classList.add('hidden');
-  const qn = quickSetNo();
-  $('#quickBtn').textContent = `${qn + 1}세트 배정`;
-  $('#quickRedo').classList.toggle('hidden', !qn); $('#quickReset').classList.toggle('hidden', !qn);
-  if (qn) { $('#quickImgBox').classList.remove('hidden'); drawImage('quick'); } else { $('#quickImgBox').classList.add('hidden'); $('#quickAllBox').classList.add('hidden'); }
+  const sg = S.sets ? GORDER.filter(g => S.sets.some(r => r.g === g && r.sets.length && r.sets.some(st => st.court.some(Boolean)))) : [];
+  resultBlock($('#setsImgBox'), 'sets', [
+    ...(sg.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawSets(sg), fname: '세트배치' }] : []),
+    ...sg.map(g => ({ id: g, label: gName(g), draw: () => drawSets([g]), fname: '세트배치_' + gName(g) }))
+  ], [el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '다시 배치')]);
+  renderQuick();
 }
 
 // ===== 이미지 그리기 (Canvas) =====
@@ -761,15 +860,15 @@ function header(x, W, title) {
 }
 const sideColor = s => s === 'V' ? [C.v, '#fff', C.vSoft] : [C.q, C.qInk, C.qSoft];
 
-function drawTeam() {
+function drawTeam(gs) {
   const groups = teamList(), W = 760;
-  const genders = ['남', '여'].filter(g => S.teams && S.teams[g] && S.teams[g].V.length + S.teams[g].Q.length);
+  const genders = presentGenders().filter(g => gs.includes(g));
   const rowsFor = g => Math.max(...groups.filter(t => t.g === g).map(t => t.players.length), 1);
   const H = 90 + genders.reduce((s, g) => s + 40 + 56 + rowsFor(g) * 34 + 20, 0);
-  const [c, x] = newCanvas(W, H); header(x, W, '팀 편성');
+  const [c, x] = newCanvas(W, H); header(x, W, (genders.length === 1 ? gName(genders[0]) + ' ' : '') + '팀 편성');
   let y = 90;
   genders.forEach(g => {
-    txt(x, g === '남' ? '남자부' : '여자부', 24, y + 14, { size: 18, w: 800 }); y += 40;
+    txt(x, gName(g), 24, y + 14, { size: 18, w: 800 }); y += 40;
     groups.filter(t => t.g === g).forEach((t, i) => {
       const X = 24 + i * ((W - 60) / 2 + 12), w = (W - 60) / 2, [bg, fg, soft] = sideColor(t.side);
       rr(x, X, y, w, 56 + rowsFor(g) * 34, 12, soft); rr(x, X, y, w, 44, 12, bg); x.fillStyle = bg; x.fillRect(X, y + 30, w, 14);
@@ -834,23 +933,26 @@ function drawSetGrid(title, rows) {
   return c;
 }
 
-function drawSets() { return drawSetGrid('세트별 포지션', S.sets.filter(r => r.sets.length)); }
-
-function quickRows() {
-  return teamList().map(t => { const q = S.quick && S.quick.teams[t.label]; return q && t.players.length ? { label: t.label, side: t.side, g: t.g, sets: q.history } : null; }).filter(Boolean);
+function drawSets(gs) {
+  const rows = GORDER.filter(g => gs.includes(g)).flatMap(g => S.sets.filter(r => r.g === g && r.sets.length));
+  return drawSetGrid((gs.length === 1 ? gName(gs[0]) + ' ' : '') + '세트별 포지션', rows);
 }
-function drawQuickAll() { return drawSetGrid('즉석 배정 1~' + quickSetNo() + '세트', quickRows()); }
+function quickRows(g) {
+  const q = (S.quick && S.quick[g]) || {};
+  return teamList().filter(t => t.g === g && t.players.length && q[t.side]).map(t => ({ label: t.label, side: t.side, g, sets: q[t.side] }));
+}
+function drawQuickAll(g) { return drawSetGrid(`${gName(g)} 즉석 배정 1~${quickSetNo(g)}세트`, quickRows(g)); }
 
 // 즉석: 지금 세트만, 성별마다 V/Q 나란히
-function drawQuick() {
-  const n = quickSetNo(), rows = quickRows(), W = 760, cw = (W - 60) / 2, cellH = 62;
+function drawQuick(gOnly) {
+  const n = quickSetNo(gOnly), rows = quickRows(gOnly), W = 760, cw = (W - 60) / 2, cellH = 62;
   const genders = [...new Set(rows.map(r => r.g))];
   const courtH = 22 + 3 * cellH + 6;
   const benchRow = g => rows.some(r => r.g === g && r.sets[n - 1] && r.sets[n - 1].bench.length) ? 30 : 0;
   const H = 86 + genders.reduce((a, g) => a + 44 + courtH + benchRow(g) + 24, 0) + 24;
   const cur = rows.find(r => r.sets[n - 1]);
   const mode = cur && cur.sets[n - 1].mode === 'rand' ? '희망 무시' : '노란 이름은 본인이 희망한 포지션';
-  const [c, x] = newCanvas(W, H); header(x, W, `${n}세트 포지션`);
+  const [c, x] = newCanvas(W, H); header(x, W, `${gName(gOnly)} ${n}세트 포지션`);
   txt(x, mode, W - 24, H - 16, { size: 13, color: C.mute, align: 'right' });
   let y = 86;
   genders.forEach(g => {
@@ -866,18 +968,9 @@ function drawQuick() {
   return c;
 }
 
-async function drawImage(kind) {
-  try { await document.fonts.load(`700 16px "Pretendard Variable"`); } catch {}
-  const c = { team: drawTeam, sets: drawSets, quick: drawQuick, quickAll: drawQuickAll }[kind]();
-  canvases[kind] = c;
-  const img = $({ team: '#teamImg', sets: '#setsImg', quick: '#quickImg', quickAll: '#quickAllImg' }[kind]);
-  if (img) img.src = c.toDataURL('image/png');
-  if (kind === 'team') $('#teamImgBox').classList.remove('hidden');
-}
-async function shareImage(kind) {
-  const c = canvases[kind]; if (!c) return;
-  const name = { team: '팀편성', sets: '세트배치', quick: quickSetNo() + '세트_즉석배정', quickAll: '즉석배정_전체' }[kind];
-  const fname = `VQ_${name}_${S.date}.png`;
+async function shareImage(key) {
+  const r = canvases[key]; if (!r) return;
+  const c = r.c, fname = `VQ_${r.fname}_${S.date}.png`;
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   const file = new File([blob], fname, { type: 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -886,13 +979,12 @@ async function shareImage(kind) {
   const a = el('a', { href: URL.createObjectURL(blob), download: fname }); document.body.append(a); a.click(); a.remove();
   toast('이미지를 저장했어요');
 }
-document.querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', () => shareImage(b.dataset.share)));
 document.querySelectorAll('dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 
 // ===== 회원 관리 =====
 function renderMemberList() {
   const box = $('#memberList'); box.innerHTML = '';
-  ['남', '여'].forEach(g => {
+  GORDER.forEach(g => {
     box.append(el('p', { class: 'mute', style: 'margin:10px 0 2px' }, g === '남' ? '남자' : '여자'));
     members.filter(m => m.gender === g).forEach(m => box.append(el('button', { on: { click: () => openMember(m) } },
       el('span', {}, el('strong', {}, m.name), m.is_admin ? ' · 관리자' : '', m.active ? '' : ' · 쉬는 중'),
