@@ -83,16 +83,19 @@ textarea:focus,.inp:focus{border-color:var(--v);outline:none}
 .count{font-variant-numeric:tabular-nums;font-weight:800}
 
 /* 팀 */
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .team{border-radius:12px;padding:12px;min-height:80px}
 .team.V{background:var(--v-soft)} .team.Q{background:var(--q-soft)}
 .team h3{margin:0 0 8px;font-size:16px;display:flex;justify-content:space-between}
 .team.V h3{color:var(--v)} .team.Q h3{color:var(--q-ink)}
 .team ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
-.team li.pl{display:flex;gap:4px}
-.team li .rm{width:auto;flex:none;background:transparent;color:var(--mute);padding:6px 8px;font-size:18px;line-height:1}
+.team li.pl{display:flex;gap:2px;align-items:stretch}
+.team li.pl>button:first-child{flex:1 1 0;min-width:0;width:auto}
+.team li .rm{width:28px;flex:none;padding:0;background:transparent;color:var(--mute);padding:6px 8px;font-size:18px;line-height:1}
 .team li button{width:100%;text-align:left;border:0;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
-.team li .pf{font-weight:400;font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team li .pf{font-weight:400;font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;text-align:right}
+.team li button>span:first-child{white-space:nowrap;flex:none}
+.team li{min-width:0}
 
 .result img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
 
@@ -114,6 +117,7 @@ dialog .in{padding:18px;display:flex;flex-direction:column;gap:14px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
+@media (max-width:520px){.team li.pl>button:first-child{flex-direction:column;align-items:flex-start;gap:0}.team li .pf{text-align:left;width:100%;flex:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -195,7 +199,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
     <section class="panel" data-tab="team">
       <div class="row" style="justify-content:space-between">
         <div><h2>V팀 · Q팀 나누기</h2><p class="mute">이름을 누르면 상대 팀으로 옮겨요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.</p></div>
-        <button class="btn" id="splitBtn">팀 나누기</button>
+        <div class="row"><button class="btn ghost hidden" id="teamReset">팀 초기화</button><button class="btn" id="splitBtn">팀 나누기</button></div>
       </div>
       <div id="teamBox"></div>
       <div class="result hidden" id="teamImgBox"></div>
@@ -697,8 +701,15 @@ async function doSplit() {
   return true;
 }
 $('#splitBtn').addEventListener('click', doSplit);
+// 팀 초기화: 팀 편성과 거기서 나온 세트 배치·즉석 배정 기록을 지운다 (참석 명단은 유지)
+$('#teamReset').addEventListener('click', () => {
+  if (!confirm('팀 편성과 세트 배치, 즉석 배정 기록을 모두 지울까요?\n참석 명단은 그대로 남아요.')) return;
+  S.teams = null; S.sets = null; S.quick = null; save();
+  renderTeams(); renderSaved(); toast('팀을 초기화했어요');
+});
 function renderTeams() {
   const box = $('#teamBox'); box.innerHTML = '';
+  $('#teamReset').classList.toggle('hidden', !S.teams);
   if (!S.teams) { box.append(el('p', { class: 'mute' }, '아직 나눈 팀이 없어요. 참석자를 확인한 뒤 팀 나누기를 누르세요.')); $('#teamImgBox').classList.add('hidden'); return; }
   const inTeam = new Set(Object.values(S.teams).flatMap(t => [...t.V, ...t.Q]).map(p => p.key));
   const loose = attendees().filter(p => !inTeam.has(p.key));
