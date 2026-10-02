@@ -97,7 +97,18 @@ textarea:focus,.inp:focus{border-color:var(--v);outline:none}
 .team li button>span:first-child{white-space:nowrap;flex:none}
 .team li{min-width:0}
 
-.result img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+.result img{width:100%;border-radius:10px;border:1px solid var(--line);display:block;cursor:zoom-in}
+.result .hint{font-size:12px;color:var(--mute);margin-top:6px}
+/* 크게 보기 */
+#viewer{position:fixed;inset:0;z-index:60;background:#0b0f1a;display:flex;flex-direction:column}
+#viewer.hidden{display:none}
+#viewer .vbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px}
+#viewer .vbar .row{gap:6px;flex-wrap:nowrap}
+#viewer .vbar button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:9px;padding:8px 14px;font-weight:700;min-width:44px}
+#viewer .vbar button:active{background:rgba(255,255,255,.28)}
+#viewer .vbar .vz{color:#c9d4f2;font-size:13px;min-width:44px;text-align:center}
+#viewer .vscroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;padding:0 12px calc(16px + env(safe-area-inset-bottom,0px))}
+#viewer img{display:block;margin:0 auto;max-width:none;background:#fff;border-radius:6px;user-select:none;-webkit-user-drag:none}
 
 .mlist{display:flex;flex-direction:column}
 .mlist button{display:flex;justify-content:space-between;gap:8px;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 2px;text-align:left}
@@ -265,6 +276,13 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
   </div>
 </div></dialog>
 
+<div id="viewer" class="hidden" role="dialog" aria-modal="true" aria-label="이미지 크게 보기">
+  <div class="vbar">
+    <div class="row"><button type="button" id="vOut" aria-label="축소">−</button><span class="vz" id="vZoom">100%</span><button type="button" id="vIn" aria-label="확대">+</button><button type="button" id="vFit">맞춤</button></div>
+    <button type="button" id="vClose">닫기</button>
+  </div>
+  <div class="vscroll" id="vScroll"><img id="vImg" alt="크게 보기"></div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -755,8 +773,10 @@ function resultBlock(box, key, views, extra = []) {
     } } }, v.label)));
     box.append(seg);
   }
-  box.append(img, el('div', { class: 'row', style: 'margin-top:8px' },
-    el('button', { class: 'btn q', on: { click: () => shareImage(key) } }, '이미지 저장·공유'), ...extra));
+  img.addEventListener('click', () => openViewer(img.src));
+  box.append(img, el('div', { class: 'hint' }, '이미지를 누르면 크게 볼 수 있어요'), el('div', { class: 'row', style: 'margin-top:8px' },
+    el('button', { class: 'btn q', on: { click: () => saveImage(key) } }, '이미지 저장'),
+    canShareFiles() ? el('button', { class: 'btn', on: { click: () => shareImage(key) } }, '공유') : null, ...extra));
   draw();
 }
 // 팀 구성이 바뀌면 미리 짠 세트 배치는 무효. 즉석 배정 기록은 사람 기준이라 유지
@@ -976,17 +996,64 @@ function drawQuick(gOnly) {
   return c;
 }
 
-async function shareImage(key) {
-  const r = canvases[key]; if (!r) return;
-  const c = r.c, fname = `VQ_${r.fname}_${S.date}.png`;
-  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
-  const file = new File([blob], fname, { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: fname }); return; } catch (e) { if (e.name === 'AbortError') return; }
-  }
-  const a = el('a', { href: URL.createObjectURL(blob), download: fname }); document.body.append(a); a.click(); a.remove();
+async function imageFile(key) {
+  const r = canvases[key]; if (!r) return null;
+  const fname = `VQ_${r.fname}_${S.date}.png`;
+  const blob = await new Promise(res => r.c.toBlob(res, 'image/png'));
+  return { blob, fname, file: new File([blob], fname, { type: 'image/png' }) };
+}
+// 바로 내려받기
+async function saveImage(key) {
+  const f = await imageFile(key); if (!f) return;
+  const a = el('a', { href: URL.createObjectURL(f.blob), download: f.fname }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('이미지를 저장했어요');
 }
+// 다른 앱으로 공유 (카카오톡 등)
+function canShareFiles() {
+  try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File(['x'], 'a.png', { type: 'image/png' })] })); } catch { return false; }
+}
+async function shareImage(key) {
+  const f = await imageFile(key); if (!f) return;
+  try { await navigator.share({ files: [f.file], title: f.fname }); }
+  catch (e) { if (e.name !== 'AbortError') toast('공유할 수 없어요. 이미지 저장을 이용해 주세요'); }
+}
+
+// ===== 이미지 크게 보기 =====
+let vZoom = 1, vFitW = 0;
+const vImg = $('#vImg'), vScroll = $('#vScroll');
+function vApply(z, cx, cy) {   // cx, cy: 확대 중심(스크롤 영역 기준 좌표)
+  const old = vImg.getBoundingClientRect().width || vFitW;
+  vZoom = Math.min(Math.max(z, 1), 5);
+  const w = vFitW * vZoom; vImg.style.width = w + 'px';
+  const k = w / old;
+  if (cx != null) { vScroll.scrollLeft = (vScroll.scrollLeft + cx) * k - cx; vScroll.scrollTop = (vScroll.scrollTop + cy) * k - cy; }
+  $('#vZoom').textContent = Math.round(vZoom * 100) + '%';
+}
+function openViewer(src) {
+  if (!src) return;
+  vImg.src = src; $('#viewer').classList.remove('hidden'); document.body.style.overflow = 'hidden';
+  vFitW = Math.max(200, vScroll.clientWidth - 24); vApply(1);
+  vScroll.scrollLeft = 0; vScroll.scrollTop = 0; $('#vClose').focus();
+}
+function closeViewer() { $('#viewer').classList.add('hidden'); document.body.style.overflow = ''; vImg.removeAttribute('src'); }
+$('#vClose').addEventListener('click', closeViewer);
+$('#vIn').addEventListener('click', () => vApply(vZoom * 1.5, vScroll.clientWidth / 2, vScroll.clientHeight / 2));
+$('#vOut').addEventListener('click', () => vApply(vZoom / 1.5, vScroll.clientWidth / 2, vScroll.clientHeight / 2));
+$('#vFit').addEventListener('click', () => { vApply(1); vScroll.scrollLeft = 0; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#viewer').classList.contains('hidden')) closeViewer(); });
+vImg.addEventListener('dblclick', e => { const r = vScroll.getBoundingClientRect(); vApply(vZoom > 1.01 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top); });
+vScroll.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); const r = vScroll.getBoundingClientRect(); vApply(vZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+// 두 손가락 확대·축소
+let pinch = null;
+const tdist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+vScroll.addEventListener('touchstart', e => { if (e.touches.length === 2) pinch = { d: tdist(e.touches), z: vZoom }; }, { passive: true });
+vScroll.addEventListener('touchmove', e => {
+  if (e.touches.length !== 2 || !pinch) return; e.preventDefault();
+  const r = vScroll.getBoundingClientRect(), cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+  vApply(pinch.z * tdist(e.touches) / pinch.d, cx, cy);
+}, { passive: false });
+vScroll.addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; });
 document.querySelectorAll('dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 
 // ===== 회원 관리 =====
