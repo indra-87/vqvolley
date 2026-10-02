@@ -811,7 +811,8 @@ function resultBlock(box, key, views, extra = []) {
   img.addEventListener('click', () => openViewer(img.src));
   box.append(img, el('div', { class: 'hint' }, '이미지를 누르면 크게 볼 수 있어요'), el('div', { class: 'row', style: 'margin-top:8px' },
     el('button', { class: 'btn q', on: { click: () => saveImage(key) } }, '이미지 저장'),
-    canShareFiles() ? el('button', { class: 'btn', on: { click: () => shareImage(key) } }, '공유') : null, ...extra));
+    canShareFiles() ? el('button', { class: 'btn', on: { click: () => shareImage(key) } }, '공유') : null));
+  if (extra.length) box.append(el('div', { class: 'row', style: 'margin-top:8px' }, ...extra));
   draw();
 }
 // 팀 구성이 바뀌면 미리 짠 세트 배치는 무효. 즉석 배정 기록은 사람 기준이라 유지
@@ -854,6 +855,14 @@ $('#setsBtn').addEventListener('click', async () => {
   S.sets = teamList().map(t => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) }));
   save(); renderSaved();
 });
+// 한 성별만 다시 배치: 다른 성별 결과는 그대로 둔다
+function regenSets(g) {
+  if (!S.sets || !S.teams) return;
+  const n = +$('#setCount').value, old = Object.fromEntries(S.sets.map(r => [r.label, r]));
+  S.sets = teamList().map(t => (t.g === g || !old[t.label])
+    ? { label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) } : old[t.label]);
+  save(); renderSaved(); toast(`${gName(g)}만 다시 배치했어요`);
+}
 // ===== 즉석 (당일 세트마다, 성별 따로) =====
 // S.quick = { 여: { V: [세트...], Q: [세트...] }, 남: {...} }, 세트 = {court, bench, mode}
 let quickMode = 'pref';
@@ -904,7 +913,10 @@ function renderSaved() {
   resultBlock($('#setsImgBox'), 'sets', [
     ...(sg.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawSets(sg), fname: '세트배치' }] : []),
     ...sg.map(g => ({ id: g, label: gName(g), draw: () => drawSets([g]), fname: '세트배치_' + gName(g) }))
-  ], [el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '다시 배치')]);
+  ], sg.length > 1
+    ? [...sg.map(g => el('button', { class: 'btn ghost', on: { click: () => regenSets(g) } }, gName(g) + ' 다시 배치')),
+       el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '전체 다시 배치')]
+    : [el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '다시 배치')]);
   renderQuick();
 }
 
