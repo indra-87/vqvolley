@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VQ 포지션</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --v:#1d3f9a; --v-soft:#e3e9f8;
+  --q:#f2b705; --q-soft:#fdf3cf; --q-ink:#5a4300;
+  --ink:#16181d; --mute:#646b78; --line:#d9dde4; --bg:#f3f4f6; --card:#fff;
+  --ok:#1b7f4b; --err:#b42318;
+  --font:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--q);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:28px;line-height:1.2;margin:0;font-weight:800;letter-spacing:-.02em}
+h2{font-size:20px;margin:0 0 4px;font-weight:750;letter-spacing:-.01em}
+p{margin:0}
+.mute{color:var(--mute);font-size:14px}
+.hidden{display:none!important}
+
+/* 로그인 */
+.login{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:24px;max-width:420px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:2px;font-weight:900;font-size:64px;letter-spacing:-.04em;line-height:1}
+.brand .bv{color:var(--v)} .brand .bq{color:var(--q);-webkit-text-stroke:1.5px var(--q-ink)}
+.login p.lead{margin:12px 0 28px;color:var(--mute)}
+.codebox{display:flex;gap:8px}
+.codebox input{flex:1;font-size:28px;letter-spacing:.3em;text-align:center;padding:12px;border:2px solid var(--line);border-radius:12px;background:#fff;font-variant-numeric:tabular-nums}
+.codebox input:focus{border-color:var(--v);outline:none}
+.err{color:var(--err);font-size:14px;margin-top:8px;min-height:21px}
+
+.btn{border:0;border-radius:10px;padding:12px 18px;font-weight:700;background:var(--v);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.q{background:var(--q);color:var(--q-ink)}
+.btn.sm{padding:7px 12px;font-size:14px;border-radius:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* 상단 */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+header.top .bar{max-width:720px;margin:0 auto;padding:12px 16px 0;display:flex;justify-content:space-between;align-items:center}
+header.top .who{font-weight:700}
+.tabs{max-width:720px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;padding:8px 12px 0;scrollbar-width:none}
+.tabs button{border:0;background:none;padding:8px 12px 10px;font-weight:650;color:var(--mute);white-space:nowrap;border-bottom:3px solid transparent}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--v)}
+
+section.panel{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--line)}
+
+/* 코트 9칸: 이 앱의 중심 요소 */
+.court{position:relative;background:var(--v);border-radius:14px;padding:22px 10px 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.court::before{content:"네트";position:absolute;top:4px;left:0;right:0;text-align:center;font-size:11px;color:#c9d4f2;letter-spacing:.2em}
+.court::after{content:"";position:absolute;top:18px;left:10px;right:10px;border-top:2px dashed rgba(255,255,255,.55)}
+.cell{aspect-ratio:1.35;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:background .12s,transform .12s;padding:4px;text-align:center;line-height:1.2}
+.cell .tag{font-size:11px;font-weight:600;opacity:.8}
+.cell[aria-pressed=true]{background:var(--q);color:var(--q-ink);transform:scale(1.02)}
+.cell:active{transform:scale(.97)}
+.court.sm .cell{font-size:13px;aspect-ratio:1.6}
+
+/* 칩 */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:14px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip.guest{border-style:dashed}
+.chip .x{opacity:.6;font-weight:400}
+.chip.warn{border-color:#e7b4ad;background:#fdf0ee}
+
+textarea,.inp{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:15px}
+textarea{min-height:96px;resize:vertical}
+textarea:focus,.inp:focus{border-color:var(--v);outline:none}
+
+.count{font-variant-numeric:tabular-nums;font-weight:800}
+
+/* 팀 */
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.team{border-radius:12px;padding:12px;min-height:80px}
+.team.V{background:var(--v-soft)} .team.Q{background:var(--q-soft)}
+.team h3{margin:0 0 8px;font-size:16px;display:flex;justify-content:space-between}
+.team.V h3{color:var(--v)} .team.Q h3{color:var(--q-ink)}
+.team ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.team li.pl{display:flex;gap:4px}
+.team li .rm{width:auto;flex:none;background:transparent;color:var(--mute);padding:6px 8px;font-size:18px;line-height:1}
+.team li button{width:100%;text-align:left;border:0;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
+.team li .pf{font-weight:400;font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.result img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+
+.mlist{display:flex;flex-direction:column}
+.mlist button{display:flex;justify-content:space-between;gap:8px;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 2px;text-align:left}
+.mlist .pf{color:var(--mute);font-size:13px;text-align:right}
+
+dialog{border:0;border-radius:16px;padding:0;width:min(440px,calc(100vw - 24px));color:var(--ink)}
+dialog::backdrop{background:rgba(10,14,25,.5)}
+dialog .in{padding:18px;display:flex;flex-direction:column;gap:14px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:7px 14px;font-weight:650}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="loginView" class="login">
+  <div class="brand"><span class="bv">V</span><span class="bq">Q</span></div>
+  <h1 style="margin-top:14px">포지션 배정</h1>
+  <p class="lead">개인확인코드 4자리를 입력하세요.</p>
+  <form id="loginForm" class="codebox" autocomplete="off">
+    <input id="codeInput" inputmode="numeric" pattern="[0-9]*" maxlength="4" aria-label="개인확인코드" placeholder="····">
+    <button class="btn" id="loginBtn">입장</button>
+  </form>
+  <div class="err" id="loginErr" role="alert"></div>
+</div>
+
+<!-- 앱 -->
+<div id="appView" class="hidden">
+  <header class="top">
+    <div class="bar">
+      <div><span class="who" id="whoName"></span> <span class="mute" id="whoRole"></span></div>
+      <button class="btn ghost sm" id="logoutBtn">나가기</button>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+  </header>
+  <main class="wrap" id="main">
+
+    <!-- 내 포지션 -->
+    <section class="panel" data-tab="me">
+      <div>
+        <h2>내 희망 포지션</h2>
+        <p class="mute">원하는 칸을 모두 누르세요. 하나도 안 고르면 어느 포지션이든 괜찮다는 뜻이에요.</p>
+      </div>
+      <div class="court" id="myCourt"></div>
+      <div class="row" style="justify-content:space-between">
+        <span class="mute" id="mySummary"></span>
+        <button class="btn" id="saveMine">저장</button>
+      </div>
+    </section>
+
+    <!-- 참석 -->
+    <section class="panel" data-tab="attend">
+      <div class="row" style="justify-content:space-between">
+        <h2>오늘 참석자</h2>
+        <input type="date" class="inp" id="gameDate" style="width:auto">
+      </div>
+      <div class="card">
+        <p class="mute" style="margin-bottom:8px">카톡 참석 명단을 그대로 붙여넣으세요. '불참'이나 '취소'가 들어간 줄은 건너뜁니다.</p>
+        <textarea id="attendPaste" placeholder="1. 정서준&#10;2. 장성국&#10;황두연, 양유"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn sm" id="attendApply">명단 반영</button>
+          <button class="btn ghost sm" id="attendClear">참석자 비우기</button>
+        </div>
+        <div id="unmatchedBox" class="hidden" style="margin-top:12px">
+          <p class="mute" style="margin-bottom:6px">회원 명단에 없는 이름이에요. 누르면 게스트로 추가합니다.</p>
+          <div class="chips" id="unmatched"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <strong>회원</strong><span class="mute">남 <span class="count" id="cntM">0</span> · 여 <span class="count" id="cntF">0</span></span>
+        </div>
+        <p class="mute" style="margin-bottom:6px">남자</p>
+        <div class="chips" id="memM"></div>
+        <p class="mute" style="margin:12px 0 6px">여자</p>
+        <div class="chips" id="memF"></div>
+      </div>
+      <div class="card">
+        <strong>게스트</strong>
+        <p class="mute" style="margin:4px 0 8px">이름, 성별, 희망 포지션 순서로 한 줄에 한 명씩 붙여넣으세요. 이름이 '게스트'면 게스트1, 게스트2처럼 번호를 붙여요.</p>
+        <textarea id="guestPaste" placeholder="게스트&#9;남자&#9;라이트, 앞차, 백차&#10;홍길동&#9;여자&#9;세터"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn sm" id="guestApply">게스트 추가</button></div>
+        <div class="chips" id="guestList" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- 팀 -->
+    <section class="panel" data-tab="team">
+      <div class="row" style="justify-content:space-between">
+        <div><h2>V팀 · Q팀 나누기</h2><p class="mute">이름을 누르면 상대 팀으로 옮겨요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.</p></div>
+        <button class="btn" id="splitBtn">팀 나누기</button>
+      </div>
+      <div id="teamBox"></div>
+      <div class="result hidden" id="teamImgBox"><img id="teamImg" alt="팀 편성 결과"><div class="row" style="margin-top:8px"><button class="btn q" data-share="team">이미지 저장·공유</button></div></div>
+    </section>
+
+    <!-- 세트 -->
+    <section class="panel" data-tab="sets">
+      <div>
+        <h2>세트별 포지션</h2>
+        <p class="mute">경기 전에 모든 세트를 한 번에 짜요. 희망 포지션을 우선하되 같은 사람이 한 포지션을 계속 맡지 않게 하고, 교체 대기도 고르게 돌아가요.</p>
+      </div>
+      <div class="row">
+        <select class="inp" id="setCount" style="width:auto">
+          <option value="3">3세트</option><option value="4">4세트</option><option value="5" selected>5세트</option>
+        </select>
+        <button class="btn" id="setsBtn">세트 배치</button>
+      </div>
+      <div class="result hidden" id="setsImgBox"></div>
+    </section>
+
+    <!-- 즉석 -->
+    <section class="panel" data-tab="quick">
+      <div>
+        <h2>즉석 배정</h2>
+        <p class="mute">팀은 미리 나눠두고, 경기 당일 세트를 시작할 때마다 그 세트의 포지션을 뽑아요. 앞 세트 기록을 보고 같은 포지션이 반복되지 않게, 교체 대기도 돌아가며 정합니다.</p>
+      </div>
+      <div class="row">
+        <div class="seg" id="quickMode"><button aria-pressed="true" data-v="pref">희망 반영</button><button aria-pressed="false" data-v="rand">희망 무시</button></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="quickBtn">1세트 배정</button>
+        <button class="btn ghost hidden" id="quickRedo">이 세트 다시 뽑기</button>
+        <button class="btn ghost hidden" id="quickReset">처음부터</button>
+      </div>
+      <div class="result hidden" id="quickImgBox"><img id="quickImg" alt="즉석 배정 결과">
+        <div class="row" style="margin-top:8px"><button class="btn q" data-share="quick">이 세트 이미지 저장·공유</button><button class="btn ghost" id="quickAllBtn">지금까지 전체 보기</button></div>
+      </div>
+      <div class="result hidden" id="quickAllBox"><img id="quickAllImg" alt="즉석 배정 전체 세트">
+        <div class="row" style="margin-top:8px"><button class="btn q" data-share="quickAll">전체 이미지 저장·공유</button></div>
+      </div>
+    </section>
+
+    <!-- 회원 관리 -->
+    <section class="panel" data-tab="members">
+      <div class="row" style="justify-content:space-between">
+        <div><h2>회원 관리</h2><p class="mute">회원을 누르면 희망 포지션과 정보를 고칠 수 있어요.</p></div>
+        <div class="row"><button class="btn ghost sm" id="reloadMembers">새로고침</button><button class="btn sm" id="addMember">회원 추가</button></div>
+      </div>
+      <div class="card mlist" id="memberList"></div>
+    </section>
+  </main>
+</div>
+
+<!-- 포지션 편집 -->
+<dialog id="prefDlg"><div class="in">
+  <h2 id="prefDlgTitle"></h2>
+  <div class="court sm" id="dlgCourt"></div>
+  <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>취소</button><button class="btn" id="prefDlgSave">저장</button></div>
+</div></dialog>
+
+<!-- 회원 정보 편집 -->
+<dialog id="memDlg"><div class="in">
+  <h2 id="memDlgTitle">회원 정보</h2>
+  <input class="inp" id="mName" placeholder="이름">
+  <div class="seg" id="mGender"><button data-v="남" aria-pressed="true">남</button><button data-v="여" aria-pressed="false">여</button></div>
+  <input class="inp" id="mCode" inputmode="numeric" maxlength="4" placeholder="개인확인코드 4자리">
+  <label class="ck"><input type="checkbox" id="mAdmin"> 관리자</label>
+  <label class="ck"><input type="checkbox" id="mActive" checked> 활동 중 (끄면 로그인과 참석 목록에서 빠져요)</label>
+  <div class="err" id="memErr"></div>
+  <div class="row" style="justify-content:space-between">
+    <button class="btn ghost sm" id="mPrefs">희망 포지션 편집</button>
+    <div class="row"><button class="btn ghost" data-close>취소</button><button class="btn" id="memDlgSave">저장</button></div>
+  </div>
+</div></dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// ===== 배정 알고리즘 =====
+const POS = ['레프트','세터','라이트','센터(속공)','앞차','백차','레프트백','센터백','라이트백'];
+
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// 헝가리안 알고리즘: 정사각 비용행렬 최소합 배정. 반환: row -> col
+function hungarian(C) {
+  const n = C.length, INF = 1e18;
+  const u = Array(n + 1).fill(0), v = Array(n + 1).fill(0), p = Array(n + 1).fill(0), way = Array(n + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    p[0] = i; let j0 = 0;
+    const minv = Array(n + 1).fill(INF), used = Array(n + 1).fill(false);
+    do {
+      used[j0] = true; const i0 = p[j0]; let delta = INF, j1 = 0;
+      for (let j = 1; j <= n; j++) if (!used[j]) {
+        const cur = C[i0 - 1][j - 1] - u[i0] - v[j];
+        if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+      }
+      for (let j = 0; j <= n; j++) if (used[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+  }
+  const res = Array(n).fill(-1);
+  for (let j = 1; j <= n; j++) if (p[j] > 0) res[p[j] - 1] = j - 1;
+  return res;
+}
+
+// 코트에 설 선수(최대 9명)를 9개 포지션에 배정. costFn(player, posIndex)
+// 9명 미만이면 빈자리 생김 (세터는 가능한 비우지 않음)
+function placeOnCourt(players, costFn) {
+  const N = 9, C = [];
+  for (let r = 0; r < N; r++) {
+    const row = [];
+    for (let c = 0; c < N; c++) {
+      if (r < players.length) row.push(costFn(players[r], c));
+      else row.push((POS[c] === '세터' ? 30 : 0) + Math.random() * 3); // 빈자리
+    }
+    C.push(row);
+  }
+  const a = hungarian(C), court = Array(N).fill(null);
+  for (let r = 0; r < players.length; r++) court[a[r]] = players[r];
+  return court; // court[posIndex] = player | null
+}
+
+const prefers = (p, i) => (p.prefs || []).includes(POS[i]);
+
+// 희망 반영 수 (팀 나누기 평가용, 노이즈 없음)
+function bestPrefScore(players) {
+  const on = players.slice(0, 9); // 평가는 대략치면 충분
+  const court = placeOnCourt(on, (p, i) => prefers(p, i) ? -1 : 0);
+  return court.reduce((s, p, i) => s + (p && prefers(p, i) ? 1 : 0), 0);
+}
+
+// 1) 한 성별의 참석자를 V/Q로 나누기
+function splitTeams(players, tries = 400) {
+  if (players.length === 0) return { V: [], Q: [] };
+  let best = -1, cands = [];
+  for (let t = 0; t < tries; t++) {
+    const s = shuffle(players);
+    const half = Math.ceil(s.length / 2);
+    // 홀수일 때 V/Q 중 어느 쪽이 한 명 많을지도 랜덤
+    const flip = Math.random() < 0.5;
+    const A = s.slice(0, flip ? half : s.length - half), B = s.slice(A.length);
+    // 9명 초과 팀은 희망 반영 여지가 커서 점수 왜곡 → 9명까지만 평가
+    const score = bestPrefScore(shuffle(A)) + bestPrefScore(shuffle(B));
+    if (score > best) { best = score; cands = [[A, B]]; }
+    else if (score === best) cands.push([A, B]);
+  }
+  const [A, B] = cands[Math.floor(Math.random() * cands.length)];
+  return { V: A, Q: B };
+}
+
+// 교체대기 선정: 대기 횟수 적은 사람 우선으로 코트에 (동률은 랜덤)
+function pickBench(players, benchCount) {
+  const extra = players.length - 9;
+  if (extra <= 0) return { court: players.slice(), bench: [] };
+  const order = shuffle(players).sort((a, b) => (benchCount[b.key] || 0) - (benchCount[a.key] || 0));
+  // 대기 많이 한 사람이 앞 → 뒤쪽에서 extra명을 대기로
+  return { court: order.slice(0, 9), bench: order.slice(9) };
+}
+
+// 다음 세트 배정: 지금까지의 세트 기록(history)을 보고
+//   희망 -10(usePref일 때), 같은 포지션을 이미 한 횟수마다 +6, 직전 세트와 같은 포지션 +8, 노이즈 0~3
+//   교체대기는 대기 횟수가 적은 사람부터
+function nextSet(players, history = [], usePref = true) {
+  const count = {}, last = {}, benchCount = {};
+  players.forEach(p => { count[p.key] = Array(9).fill(0); });
+  history.forEach(st => {
+    st.court.forEach((p, i) => { if (p && count[p.key]) count[p.key][i]++; });
+    st.bench.forEach(p => benchCount[p.key] = (benchCount[p.key] || 0) + 1);
+  });
+  const prev = history[history.length - 1];
+  if (prev) prev.court.forEach((p, i) => { if (p) last[p.key] = i; });
+  const { court, bench } = pickBench(players, benchCount);
+  const pos = placeOnCourt(court, (p, i) =>
+    (usePref && prefers(p, i) ? -10 : 0) + count[p.key][i] * 6 + (last[p.key] === i ? 8 : 0) + Math.random() * 3);
+  return { court: pos, bench };
+}
+
+// 2) 세트별 배치: 팀 고정, n세트를 한 번에
+function setsAssign(players, nSets = 5) {
+  const sets = [];
+  for (let s = 0; s < nSets; s++) sets.push(nextSet(players, sets, true));
+  return sets;
+}
+
+if (typeof module !== 'undefined') module.exports = { POS, hungarian, placeOnCourt, splitTeams, nextSet, setsAssign, shuffle };
+
+</script>
+<script>
+// ===== 설정: Supabase 프로젝트 주소와 공개(anon) 키 =====
+const SUPABASE_URL = 'https://pqjuvuflinnrpemqcafl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_cLJMfWR5mhDiNte918PA3g_dYD_XGd3';
+
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'on') for (const [ev, fn] of Object.entries(v)) e.addEventListener(ev, fn);
+    else if (k === 'class') e.className = v;
+    else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v === true ? '' : v);
+  }
+  kids.flat().forEach(k => k != null && e.append(k));
+  return e;
+};
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200); }
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+async function rpc(fn, args) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+    body: JSON.stringify(args)
+  });
+  const body = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((body && body.message) || '서버 연결에 실패했어요');
+  return body;
+}
+
+// ===== 상태 =====
+let me = null, code = null, members = [];
+let S = store.get('vq_state', null) || {};
+S = Object.assign({ date: new Date().toLocaleDateString('sv-SE'), attend: [], guests: [], teams: null, sets: null, quick: null }, S);
+const save = () => store.set('vq_state', S);
+
+// 참가자 객체: {key, name, gender, prefs, guest}
+function memberPlayer(m) { return { key: 'm' + m.id, name: m.name, gender: m.gender, prefs: m.prefs || [], guest: false }; }
+function attendees() {
+  const byId = Object.fromEntries(members.map(m => ['m' + m.id, m]));
+  return [
+    ...S.attend.filter(k => byId[k] && byId[k].active).map(k => memberPlayer(byId[k])),
+    ...S.guests.map(g => ({ ...g, guest: true }))
+  ];
+}
+// 팀 안의 선수 정보를 최신 희망 포지션으로 갱신
+function freshen(p) {
+  if (p.guest) return S.guests.find(g => g.key === p.key) ? { ...S.guests.find(g => g.key === p.key), guest: true } : p;
+  const m = members.find(m => 'm' + m.id === p.key); return m ? memberPlayer(m) : p;
+}
+
+// ===== 9칸 코트 위젯 =====
+function courtPicker(container, selected, onChange) {
+  container.innerHTML = '';
+  POS.forEach(pos => {
+    const b = el('button', { class: 'cell', type: 'button', 'aria-pressed': String(selected.includes(pos)) }, pos);
+    b.addEventListener('click', () => {
+      const i = selected.indexOf(pos);
+      if (i >= 0) selected.splice(i, 1); else selected.push(pos);
+      b.setAttribute('aria-pressed', String(i < 0));
+      onChange && onChange(selected);
+    });
+    container.append(b);
+  });
+}
+const prefText = p => p && p.length ? p.join(', ') : '상관없음';
+
+// ===== 로그인 =====
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const c = $('#codeInput').value.trim();
+  if (!/^\d{3,4}$/.test(c)) { $('#loginErr').textContent = '숫자 4자리를 입력하세요.'; return; }
+  $('#loginBtn').disabled = true; $('#loginErr').textContent = '';
+  try { await login(c); } catch (err) { $('#loginErr').textContent = err.message; }
+  $('#loginBtn').disabled = false;
+});
+async function login(c) {
+  const u = await rpc('vq_login', { p_code: c });
+  if (!u) throw new Error('맞는 코드가 없어요. 다시 확인해 주세요.');
+  me = u; code = c; store.set('vq_code', c);
+  if (me.is_admin) await loadMembers();
+  enterApp();
+}
+$('#logoutBtn').addEventListener('click', () => { store.set('vq_code', null); location.reload(); });
+
+async function loadMembers() { members = await rpc('vq_admin_list', { p_code: code }); }
+
+// ===== 화면 전환 =====
+const TABS = [['me', '내 포지션'], ['attend', '참석'], ['team', '팀'], ['sets', '세트 배치'], ['quick', '즉석 배정'], ['members', '회원 관리']];
+function enterApp() {
+  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');
+  $('#whoName').textContent = me.name + ' 님';
+  $('#whoRole').textContent = me.is_admin ? '관리자' : '';
+  const tabs = me.is_admin ? TABS : TABS.slice(0, 1);
+  $('#tabs').innerHTML = '';
+  if (tabs.length > 1) tabs.forEach(([id, label]) => $('#tabs').append(el('button', { role: 'tab', 'data-id': id, on: { click: () => showTab(id) } }, label)));
+  renderMine();
+  if (me.is_admin) { renderAttend(); renderTeams(); renderMemberList(); renderSaved(); }
+  showTab(me.is_admin ? store.get('vq_tab', 'attend') : 'me');
+}
+function showTab(id) {
+  document.querySelectorAll('section.panel').forEach(s => s.classList.toggle('hidden', s.dataset.tab !== id));
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.id === id)));
+  if (me.is_admin) store.set('vq_tab', id);
+  if (me.is_admin && id === 'team') renderTeams();
+  window.scrollTo(0, 0);
+}
+
+// ===== 내 포지션 =====
+function renderMine() {
+  const sel = (me.prefs || []).slice();
+  const sum = () => $('#mySummary').textContent = '선택: ' + prefText(sel);
+  courtPicker($('#myCourt'), sel, sum); sum();
+  $('#saveMine').onclick = async () => {
+    $('#saveMine').disabled = true;
+    try {
+      const r = await rpc('vq_save_prefs', { p_code: code, p_prefs: sel });
+      me.prefs = r.prefs; toast('저장했어요');
+      const m = members.find(m => m.id === me.id); if (m) m.prefs = r.prefs;
+    } catch (e) { toast(e.message); }
+    $('#saveMine').disabled = false;
+  };
+}
+
+// ===== 참석 =====
+const STOP = new Set(['참석','불참','오후','오전','늦참','지각','게스트','명단','배구','남자','여자','회원','정회원','오늘','투표','완료','확인','추가','취소','조퇴','예정']);
+function parseAttendance(text) {
+  const names = members.filter(m => m.active).map(m => m.name).sort((a, b) => b.length - a.length);
+  const found = new Set(), unknown = new Set();
+  text.split(/\n/).forEach(line => {
+    if (/불참|취소/.test(line)) return;
+    (line.match(/[가-힣]{2,}/g) || []).forEach(tok => {
+      const hit = names.find(n => tok === n || tok.startsWith(n));
+      if (hit) found.add(hit);
+      else if (tok.length <= 4 && !STOP.has(tok) && !POS.includes(tok)) unknown.add(tok);
+    });
+  });
+  return { found: [...found], unknown: [...unknown] };
+}
+$('#attendApply').addEventListener('click', () => {
+  const { found, unknown } = parseAttendance($('#attendPaste').value);
+  found.forEach(n => { const m = members.find(m => m.name === n); const k = 'm' + m.id; if (!S.attend.includes(k)) S.attend.push(k); });
+  const guestNames = new Set(S.guests.map(g => g.name));
+  const unk = unknown.filter(n => !guestNames.has(n));
+  $('#unmatchedBox').classList.toggle('hidden', !unk.length);
+  $('#unmatched').innerHTML = '';
+  unk.forEach(n => $('#unmatched').append(el('button', { class: 'chip warn', on: { click: e => { openGuestDialog({ name: n }); e.currentTarget.remove(); } } }, n + ' +')));
+  save(); renderAttend();
+  toast(`${found.length}명 반영했어요`);
+});
+$('#attendClear').addEventListener('click', () => { if (confirm('참석자와 게스트를 모두 비울까요?')) { S.attend = []; S.guests = []; save(); renderAttend(); } });
+$('#gameDate').addEventListener('change', e => { S.date = e.target.value; save(); });
+
+function renderAttend() {
+  $('#gameDate').value = S.date;
+  ['남', '여'].forEach(g => {
+    const box = g === '남' ? $('#memM') : $('#memF'); box.innerHTML = '';
+    members.filter(m => m.active && m.gender === g).forEach(m => {
+      const k = 'm' + m.id, on = S.attend.includes(k);
+      box.append(el('button', { class: 'chip', 'aria-pressed': String(on), on: { click: () => {
+        S.attend = on ? S.attend.filter(x => x !== k) : [...S.attend, k]; save(); renderAttend();
+      } } }, m.name));
+    });
+  });
+  $('#guestList').innerHTML = '';
+  S.guests.forEach(g => $('#guestList').append(el('button', { class: 'chip guest', on: { click: () => openGuestDialog(g) } },
+    `${g.name} ${g.gender}`, el('span', { class: 'x' }, prefText(g.prefs)))));
+  const gn = new Set(S.guests.map(g => g.name));
+  $('#unmatched').querySelectorAll('button').forEach(b => { if (gn.has(b.textContent.replace(' +', ''))) b.remove(); });
+  $('#unmatchedBox').classList.toggle('hidden', !$('#unmatched').children.length);
+  const a = attendees();
+  $('#cntM').textContent = a.filter(p => p.gender === '남').length;
+  $('#cntF').textContent = a.filter(p => p.gender === '여').length;
+}
+
+// 게스트 붙여넣기: "이름 성별 포지션..."
+const ALIASES = [['레프트백','레프트백'],['라이트백','라이트백'],['센터백','센터백'],['센터(속공)','센터(속공)'],['속공','센터(속공)'],['센터','센터(속공)'],['레프트','레프트'],['라이트','라이트'],['세터','세터'],['앞차','앞차'],['백차','백차']];
+function parsePositions(s) {
+  const out = []; s = s.replace(/\s+/g, '');
+  ALIASES.forEach(([a, p]) => { if (s.includes(a)) { if (!out.includes(p)) out.push(p); s = s.split(a).join(' '); } });
+  return POS.filter(p => out.includes(p));
+}
+const genderOf = t => /^남(자)?$/.test(t) ? '남' : /^여(자)?$/.test(t) ? '여' : null;
+function parseGuestLine(line) {
+  // 엑셀/시트에서 복사한 탭 구분 형식: 이름 \t 성별 \t 포지션들
+  if (line.includes('\t')) {
+    const cols = line.split('\t').map(c => c.trim());
+    const name = cols[0], gi = cols.findIndex((c, i) => i > 0 && genderOf(c));
+    if (name) return { name, gender: gi > 0 ? genderOf(cols[gi]) : null, prefs: parsePositions(cols.slice(1).join(' ')) };
+  }
+  const g = (line.match(/(^|[^가-힣])(남자|여자|남|여)(?![가-힣])/) || [])[2];
+  const rest = line.replace(/(^|[^가-힣])(남자|여자|남|여)(?![가-힣])/, ' ');
+  const prefs = parsePositions(rest);
+  const tokens = (rest.match(/[가-힣]{2,}/g) || []).filter(t => !parsePositions(t).length && !STOP.has(t));
+  if (!tokens.length) return null;
+  return { name: tokens[0], gender: g ? g[0] : null, prefs };
+}
+$('#guestApply').addEventListener('click', () => {
+  const lines = $('#guestPaste').value.split('\n').map(s => s.trim()).filter(Boolean);
+  let added = 0, noGender = [];
+  lines.forEach(l => {
+    const g = parseGuestLine(l); if (!g) return;
+    if (!g.gender) { noGender.push(g.name); return; }
+    upsertGuest(g); added++;
+  });
+  $('#guestPaste').value = noGender.length ? lines.filter(l => noGender.some(n => l.includes(n))).join('\n') : '';
+  renderAttend();
+  toast(noGender.length ? `${added}명 추가. 성별이 없는 줄은 남겨뒀어요` : `게스트 ${added}명 추가했어요`);
+});
+function upsertGuest(g) {
+  if (/^게스트\d*$/.test(g.name) && !S.guests.includes(g)) { // 이름이 '게스트'면 번호 붙이기
+    let n = 1; while (S.guests.some(x => x.name === '게스트' + n)) n++;
+    g = { ...g, name: '게스트' + n };
+  }
+  const ex = S.guests.find(x => x.name === g.name);
+  if (ex) Object.assign(ex, g); else S.guests.push({ key: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ...g });
+  save();
+}
+function openGuestDialog(g) {
+  const isNew = !S.guests.includes(g);
+  const sel = (g.prefs || []).slice(); let gender = g.gender || '남';
+  $('#prefDlgTitle').innerHTML = '';
+  const seg = el('div', { class: 'seg' }, ...['남', '여'].map(v => el('button', { type: 'button', 'aria-pressed': String(v === gender), on: { click: e => {
+    gender = v; seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
+  } } }, v)));
+  $('#prefDlgTitle').append(`게스트 ${g.name} `, seg);
+  courtPicker($('#dlgCourt'), sel);
+  const dlg = $('#prefDlg');
+  let del = dlg.querySelector('.delguest'); if (del) del.remove();
+  if (!isNew) {
+    del = el('button', { class: 'btn ghost delguest', type: 'button', on: { click: () => {
+      S.guests = S.guests.filter(x => x !== g); save(); renderAttend(); dlg.close();
+    } } }, '게스트 삭제');
+    dlg.querySelector('.row').prepend(del);
+  }
+  $('#prefDlgSave').onclick = () => {
+    if (isNew) upsertGuest({ name: g.name, gender, prefs: sel }); else { Object.assign(g, { gender, prefs: sel }); save(); }
+    renderAttend(); dlg.close();
+  };
+  dlg.showModal();
+}
+
+// ===== 팀 나누기 =====
+async function doSplit() {
+  $('#splitBtn').disabled = true;
+  try { await loadMembers(); } catch { /* 연결이 안 되면 마지막으로 불러온 정보 사용 */ }
+  const a = attendees();
+  $('#splitBtn').disabled = false;
+  if (!a.length) { toast('참석 탭에서 참석자를 먼저 넣어주세요'); showTab('attend'); return false; }
+  S.teams = {};
+  ['남', '여'].forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) S.teams[g] = splitTeams(ps); });
+  S.sets = null; S.quick = null; save();
+  renderTeams(); renderSaved();
+  return true;
+}
+$('#splitBtn').addEventListener('click', doSplit);
+function renderTeams() {
+  const box = $('#teamBox'); box.innerHTML = '';
+  if (!S.teams) { box.append(el('p', { class: 'mute' }, '아직 나눈 팀이 없어요. 참석자를 확인한 뒤 팀 나누기를 누르세요.')); $('#teamImgBox').classList.add('hidden'); return; }
+  const inTeam = new Set(Object.values(S.teams).flatMap(t => [...t.V, ...t.Q]).map(p => p.key));
+  const loose = attendees().filter(p => !inTeam.has(p.key));
+  if (loose.length) box.append(el('div', { class: 'card', style: 'margin-bottom:12px' },
+    el('p', { style: 'margin-bottom:4px;font-weight:700' }, '팀이 없는 참석자'),
+    el('p', { class: 'mute', style: 'margin-bottom:8px' }, '누르면 인원이 적은 팀으로 들어가요.'),
+    el('div', { class: 'chips' }, ...loose.map(p => el('button', { class: 'chip' + (p.guest ? ' guest' : ''), on: { click: () => addLoose(p) } }, `${p.name} ${p.gender}`)))));
+  ['남', '여'].forEach(g => {
+    const t = S.teams[g]; if (!t || !(t.V.length + t.Q.length)) return;
+    box.append(el('h2', { style: 'font-size:17px;margin:4px 0 8px' }, g === '남' ? '남자부' : '여자부'));
+    box.append(el('div', { class: 'teams' }, ...['V', 'Q'].map(side => el('div', { class: 'team ' + side },
+      el('h3', {}, side + '팀', el('span', { class: 'count' }, t[side].length + '명')),
+      el('ul', {}, ...t[side].map(p => { p = freshen(p); return el('li', { class: 'pl' }, el('button', { on: { click: () => movePlayer(g, side, p.key) } },
+        el('span', {}, p.name + (p.guest ? ' (G)' : '')), el('span', { class: 'pf' }, prefText(p.prefs))),
+        el('button', { class: 'rm', 'aria-label': p.name + ' 빼기', title: '팀에서 빼기', on: { click: () => removePlayer(g, side, p.key) } }, '×')); }))
+    ))));
+  });
+  drawImage('team');
+}
+// 팀 구성이 바뀌면 미리 짠 세트 배치는 무효. 즉석 배정 기록은 사람 기준이라 유지
+function movePlayer(g, from, key) {
+  const to = from === 'V' ? 'Q' : 'V', t = S.teams[g];
+  const p = t[from].find(x => x.key === key);
+  t[from] = t[from].filter(x => x.key !== key); t[to].push(p);
+  S.sets = null; save(); renderTeams(); renderSaved();
+}
+function removePlayer(g, side, key) {
+  if (!confirm('팀과 참석 명단에서 뺄까요?')) return;
+  S.teams[g][side] = S.teams[g][side].filter(x => x.key !== key);
+  S.attend = S.attend.filter(k => k !== key);
+  S.guests = S.guests.filter(x => x.key !== key);
+  S.sets = null; save(); renderTeams(); renderAttend(); renderSaved();
+}
+function addLoose(p) {
+  if (!S.teams[p.gender]) S.teams[p.gender] = { V: [], Q: [] };
+  const t = S.teams[p.gender], side = t.V.length < t.Q.length ? 'V' : t.Q.length < t.V.length ? 'Q' : (Math.random() < .5 ? 'V' : 'Q');
+  t[side].push(p); S.sets = null; save(); renderTeams(); renderSaved();
+  toast(`${p.name} → ${p.gender === '남' ? '남자' : '여자'} ${side}팀`);
+}
+function teamList() { // [{label, side, players}]
+  const out = [];
+  ['남', '여'].forEach(g => { const t = S.teams && S.teams[g]; if (!t) return;
+    ['V', 'Q'].forEach(side => out.push({ g, side, label: `${g === '남' ? '남자' : '여자'} ${side}팀`, players: t[side].map(freshen) })); });
+  return out;
+}
+async function ensureTeams() {
+  if (S.teams) return true;
+  return doSplit();
+}
+
+// ===== 세트 배치 =====
+$('#setsBtn').addEventListener('click', async () => {
+  if (!(await ensureTeams())) return;
+  const n = +$('#setCount').value;
+  S.sets = teamList().map(t => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) }));
+  save(); renderSaved();
+});
+// ===== 즉석 (당일 세트마다) =====
+// S.quick = { teams: { [label]: { side, g, history: [{court, bench, mode}] } } }
+let quickMode = 'pref';
+$('#quickMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; quickMode = b.dataset.v;
+  $('#quickMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+function quickSetNo() { return S.quick ? Math.max(0, ...Object.values(S.quick.teams).map(t => t.history.length)) : 0; }
+async function quickNext(redo) {
+  if (!(await ensureTeams())) return;
+  if (!S.quick) S.quick = { teams: {} };
+  const n = quickSetNo(), target = redo ? n : n + 1;
+  teamList().forEach(t => {
+    if (!t.players.length) return;
+    const q = S.quick.teams[t.label] || (S.quick.teams[t.label] = { side: t.side, g: t.g, history: [] });
+    while (q.history.length >= target) q.history.pop();
+    while (q.history.length < target - 1) q.history.push({ court: Array(9).fill(null), bench: [] }); // 중간에 생긴 팀
+    q.history.push({ ...nextSet(t.players, q.history, quickMode === 'pref'), mode: quickMode });
+  });
+  $('#quickAllBox').classList.add('hidden');
+  save(); renderSaved();
+}
+$('#quickBtn').addEventListener('click', () => quickNext(false));
+$('#quickRedo').addEventListener('click', () => quickNext(true));
+$('#quickReset').addEventListener('click', () => { if (confirm('즉석 배정 기록을 지우고 1세트부터 다시 할까요?')) { S.quick = null; save(); renderSaved(); } });
+$('#quickAllBtn').addEventListener('click', () => { $('#quickAllBox').classList.remove('hidden'); drawImage('quickAll'); });
+function renderSaved() {
+  const sb = $('#setsImgBox');
+  if (S.sets) {
+    sb.classList.remove('hidden'); sb.innerHTML = '';
+    sb.append(el('img', { id: 'setsImg', alt: '세트별 포지션 결과' }), el('div', { class: 'row', style: 'margin-top:8px' },
+      el('button', { class: 'btn q', on: { click: () => shareImage('sets') } }, '이미지 저장·공유'),
+      el('button', { class: 'btn ghost', on: { click: () => $('#setsBtn').click() } }, '다시 배치')));
+    drawImage('sets');
+  } else sb.classList.add('hidden');
+  const qn = quickSetNo();
+  $('#quickBtn').textContent = `${qn + 1}세트 배정`;
+  $('#quickRedo').classList.toggle('hidden', !qn); $('#quickReset').classList.toggle('hidden', !qn);
+  if (qn) { $('#quickImgBox').classList.remove('hidden'); drawImage('quick'); } else { $('#quickImgBox').classList.add('hidden'); $('#quickAllBox').classList.add('hidden'); }
+}
+
+// ===== 이미지 그리기 (Canvas) =====
+const C = { v: '#1d3f9a', vSoft: '#e3e9f8', q: '#f2b705', qSoft: '#fdf3cf', qInk: '#5a4300', ink: '#16181d', mute: '#646b78', line: '#d9dde4', bg: '#ffffff' };
+const FONT = '"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+const canvases = {};
+function fmtDate(d) { const t = new Date(d + 'T00:00'); return isNaN(t) ? d : `${t.getFullYear()}. ${t.getMonth() + 1}. ${t.getDate()}. (${'일월화수목금토'[t.getDay()]})`; }
+function newCanvas(w, h) { const c = document.createElement('canvas'); const s = 2; c.width = w * s; c.height = h * s; const x = c.getContext('2d'); x.scale(s, s); x.fillStyle = C.bg; x.fillRect(0, 0, w, h); x.textBaseline = 'middle'; return [c, x]; }
+function txt(x, s, X, Y, { size = 16, w = 500, color = C.ink, align = 'left', max } = {}) {
+  x.font = `${w} ${size}px ${FONT}`; x.fillStyle = color; x.textAlign = align;
+  if (max) { while (x.measureText(s).width > max && size > 9) { size--; x.font = `${w} ${size}px ${FONT}`; } }
+  x.fillText(s, X, Y);
+}
+function rr(x, X, Y, w, h, r, fill) { x.beginPath(); if (x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); x.fillStyle = fill; x.fill(); }
+function header(x, W, title) {
+  txt(x, 'VQ', 24, 38, { size: 30, w: 900, color: C.v });
+  txt(x, title, 76, 38, { size: 24, w: 800 });
+  txt(x, fmtDate(S.date), W - 24, 38, { size: 16, w: 600, color: C.mute, align: 'right' });
+  x.fillStyle = C.line; x.fillRect(24, 66, W - 48, 1);
+}
+const sideColor = s => s === 'V' ? [C.v, '#fff', C.vSoft] : [C.q, C.qInk, C.qSoft];
+
+function drawTeam() {
+  const groups = teamList(), W = 760;
+  const genders = ['남', '여'].filter(g => S.teams && S.teams[g] && S.teams[g].V.length + S.teams[g].Q.length);
+  const rowsFor = g => Math.max(...groups.filter(t => t.g === g).map(t => t.players.length), 1);
+  const H = 90 + genders.reduce((s, g) => s + 40 + 56 + rowsFor(g) * 34 + 20, 0);
+  const [c, x] = newCanvas(W, H); header(x, W, '팀 편성');
+  let y = 90;
+  genders.forEach(g => {
+    txt(x, g === '남' ? '남자부' : '여자부', 24, y + 14, { size: 18, w: 800 }); y += 40;
+    groups.filter(t => t.g === g).forEach((t, i) => {
+      const X = 24 + i * ((W - 60) / 2 + 12), w = (W - 60) / 2, [bg, fg, soft] = sideColor(t.side);
+      rr(x, X, y, w, 56 + rowsFor(g) * 34, 12, soft); rr(x, X, y, w, 44, 12, bg); x.fillStyle = bg; x.fillRect(X, y + 30, w, 14);
+      txt(x, t.side + '팀', X + 16, y + 22, { size: 18, w: 800, color: fg });
+      txt(x, t.players.length + '명', X + w - 16, y + 22, { size: 15, w: 700, color: fg, align: 'right' });
+      t.players.forEach((p, k) => {
+        txt(x, p.name + (p.guest ? ' (G)' : ''), X + 16, y + 64 + k * 34, { size: 17, w: 650 });
+        txt(x, p.prefs.length ? p.prefs.join(' · ') : '', X + w - 14, y + 64 + k * 34, { size: 12, w: 500, color: C.mute, align: 'right', max: w - 120 });
+      });
+    });
+    y += 56 + rowsFor(g) * 34 + 20;
+  });
+  return c;
+}
+
+// 9칸 코트 하나 그리기 (네트가 위)
+function drawCourt(x, X, Y, w, st, { cellH = 56, nameSize = 16 } = {}) {
+  const h = 22 + 3 * cellH + 6;
+  rr(x, X, Y, w, h, 12, C.v);
+  x.strokeStyle = 'rgba(255,255,255,.6)'; x.setLineDash([6, 5]); x.lineWidth = 2;
+  x.beginPath(); x.moveTo(X + 10, Y + 12); x.lineTo(X + w - 10, Y + 12); x.stroke(); x.setLineDash([]);
+  const gw = (w - 16 - 8) / 3;
+  POS.forEach((pos, k) => {
+    const cx = X + 8 + (k % 3) * (gw + 4), cy = Y + 20 + Math.floor(k / 3) * cellH;
+    const p = st.court[k];
+    rr(x, cx, cy, gw, cellH - 4, 8, p ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.05)');
+    txt(x, pos, cx + gw / 2, cy + cellH * 0.27, { size: Math.round(cellH * 0.2), w: 600, color: '#c9d4f2', align: 'center', max: gw - 6 });
+    const hit = p && (p.prefs || []).includes(pos);
+    txt(x, p ? p.name + (p.guest ? '(G)' : '') : '빈자리', cx + gw / 2, cy + cellH * 0.64,
+      { size: p ? nameSize : nameSize - 3, w: p ? 750 : 500, color: !p ? '#8ea0d8' : hit ? '#ffd84d' : '#fff', align: 'center', max: gw - 8 });
+  });
+  return h;
+}
+
+// 팀(행) × 세트(열) 격자 한 장. rows: [{label, side, g, sets:[{court, bench}]}]
+function drawSetGrid(title, rows) {
+  const nS = Math.max(...rows.map(r => r.sets.length)), cw = 268, gap = 12, labelW = 96;
+  const W = 24 + labelW + nS * (cw + gap) + 12;
+  const courtH = 22 + 3 * 56 + 6;
+  const hasBench = r => r.sets.some(s => s.bench.length);
+  const rowH = r => courtH + (hasBench(r) ? 30 : 0) + 22;
+  const H = 86 + 34 + rows.reduce((a, r) => a + rowH(r), 0) + 30;
+  const [c, x] = newCanvas(W, H); header(x, W, title);
+  let y = 86;
+  for (let s = 0; s < nS; s++) txt(x, `${s + 1}세트`, 24 + labelW + s * (cw + gap) + cw / 2, y + 14, { size: 18, w: 800, align: 'center' });
+  y += 34;
+  rows.forEach((r, ri) => {
+    if (ri > 0 && rows[ri - 1].g !== r.g) { x.fillStyle = C.line; x.fillRect(24, y - 12, W - 48, 1); }
+    const [bg, fg] = sideColor(r.side);
+    rr(x, 24, y, labelW - 12, courtH, 12, bg);
+    const [g1, g2] = r.label.split(' ');
+    txt(x, g1, 24 + (labelW - 12) / 2, y + courtH / 2 - 14, { size: 16, w: 700, color: fg, align: 'center' });
+    txt(x, g2, 24 + (labelW - 12) / 2, y + courtH / 2 + 12, { size: 20, w: 850, color: fg, align: 'center' });
+    r.sets.forEach((st, s) => {
+      const X = 24 + labelW + s * (cw + gap);
+      drawCourt(x, X, y, cw, st);
+      if (st.bench.length) txt(x, '대기  ' + st.bench.map(p => p.name).join(', '), X + 4, y + courtH + 16, { size: 14, w: 600, color: C.mute, max: cw - 8 });
+    });
+    y += rowH(r);
+  });
+  txt(x, '노란 이름은 본인이 희망한 포지션', W - 24, H - 18, { size: 13, color: C.mute, align: 'right' });
+  return c;
+}
+
+function drawSets() { return drawSetGrid('세트별 포지션', S.sets.filter(r => r.sets.length)); }
+
+function quickRows() {
+  return teamList().map(t => { const q = S.quick && S.quick.teams[t.label]; return q && t.players.length ? { label: t.label, side: t.side, g: t.g, sets: q.history } : null; }).filter(Boolean);
+}
+function drawQuickAll() { return drawSetGrid('즉석 배정 1~' + quickSetNo() + '세트', quickRows()); }
+
+// 즉석: 지금 세트만, 성별마다 V/Q 나란히
+function drawQuick() {
+  const n = quickSetNo(), rows = quickRows(), W = 760, cw = (W - 60) / 2, cellH = 62;
+  const genders = [...new Set(rows.map(r => r.g))];
+  const courtH = 22 + 3 * cellH + 6;
+  const benchRow = g => rows.some(r => r.g === g && r.sets[n - 1] && r.sets[n - 1].bench.length) ? 30 : 0;
+  const H = 86 + genders.reduce((a, g) => a + 44 + courtH + benchRow(g) + 24, 0) + 24;
+  const cur = rows.find(r => r.sets[n - 1]);
+  const mode = cur && cur.sets[n - 1].mode === 'rand' ? '희망 무시' : '노란 이름은 본인이 희망한 포지션';
+  const [c, x] = newCanvas(W, H); header(x, W, `${n}세트 포지션`);
+  txt(x, mode, W - 24, H - 16, { size: 13, color: C.mute, align: 'right' });
+  let y = 86;
+  genders.forEach(g => {
+    rows.filter(r => r.g === g).forEach((r, i) => {
+      const X = 24 + i * (cw + 12), [bg, fg] = sideColor(r.side), st = r.sets[n - 1];
+      rr(x, X, y, cw, 40, 10, bg); txt(x, r.label, X + 14, y + 20, { size: 17, w: 800, color: fg });
+      if (!st) return;
+      drawCourt(x, X, y + 44, cw, st, { cellH, nameSize: 17 });
+      if (st.bench.length) txt(x, '대기  ' + st.bench.map(p => p.name).join(', '), X + 4, y + 44 + courtH + 18, { size: 15, w: 600, color: C.mute, max: cw - 8 });
+    });
+    y += 44 + courtH + benchRow(g) + 24;
+  });
+  return c;
+}
+
+async function drawImage(kind) {
+  try { await document.fonts.load(`700 16px "Pretendard Variable"`); } catch {}
+  const c = { team: drawTeam, sets: drawSets, quick: drawQuick, quickAll: drawQuickAll }[kind]();
+  canvases[kind] = c;
+  const img = $({ team: '#teamImg', sets: '#setsImg', quick: '#quickImg', quickAll: '#quickAllImg' }[kind]);
+  if (img) img.src = c.toDataURL('image/png');
+  if (kind === 'team') $('#teamImgBox').classList.remove('hidden');
+}
+async function shareImage(kind) {
+  const c = canvases[kind]; if (!c) return;
+  const name = { team: '팀편성', sets: '세트배치', quick: quickSetNo() + '세트_즉석배정', quickAll: '즉석배정_전체' }[kind];
+  const fname = `VQ_${name}_${S.date}.png`;
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const file = new File([blob], fname, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: fname }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = el('a', { href: URL.createObjectURL(blob), download: fname }); document.body.append(a); a.click(); a.remove();
+  toast('이미지를 저장했어요');
+}
+document.querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', () => shareImage(b.dataset.share)));
+document.querySelectorAll('dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+
+// ===== 회원 관리 =====
+function renderMemberList() {
+  const box = $('#memberList'); box.innerHTML = '';
+  ['남', '여'].forEach(g => {
+    box.append(el('p', { class: 'mute', style: 'margin:10px 0 2px' }, g === '남' ? '남자' : '여자'));
+    members.filter(m => m.gender === g).forEach(m => box.append(el('button', { on: { click: () => openMember(m) } },
+      el('span', {}, el('strong', {}, m.name), m.is_admin ? ' · 관리자' : '', m.active ? '' : ' · 쉬는 중'),
+      el('span', { class: 'pf' }, prefText(m.prefs)))));
+  });
+}
+$('#reloadMembers').addEventListener('click', async () => { try { await loadMembers(); renderMemberList(); renderAttend(); toast('최신 정보로 바꿨어요'); } catch (e) { toast(e.message); } });
+$('#addMember').addEventListener('click', () => openMember(null));
+let mGender = '남';
+$('#mGender').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; mGender = b.dataset.v; $('#mGender').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+function openMember(m) {
+  $('#memDlgTitle').textContent = m ? m.name + ' 님 정보' : '새 회원';
+  $('#mName').value = m ? m.name : ''; $('#mCode').value = m ? m.code : '';
+  mGender = m ? m.gender : '남'; $('#mGender').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === mGender)));
+  $('#mAdmin').checked = !!(m && m.is_admin); $('#mActive').checked = m ? m.active : true;
+  $('#memErr').textContent = ''; $('#mPrefs').classList.toggle('hidden', !m);
+  $('#mPrefs').onclick = () => { $('#memDlg').close(); openMemberPrefs(m); };
+  $('#memDlgSave').onclick = async () => {
+    const name = $('#mName').value.trim(), c = $('#mCode').value.trim();
+    if (!name || !/^\d{4}$/.test(c)) { $('#memErr').textContent = '이름과 숫자 4자리 코드를 넣어주세요.'; return; }
+    try {
+      await rpc('vq_admin_save_member', { p_code: code, p_id: m ? m.id : null, p_name: name, p_gender: mGender, p_member_code: c, p_is_admin: $('#mAdmin').checked, p_active: $('#mActive').checked });
+      await loadMembers(); renderMemberList(); renderAttend(); $('#memDlg').close(); toast('저장했어요');
+    } catch (e) { $('#memErr').textContent = e.message; }
+  };
+  $('#memDlg').showModal();
+}
+function openMemberPrefs(m) {
+  const sel = (m.prefs || []).slice();
+  $('#prefDlgTitle').textContent = m.name + ' 님 희망 포지션';
+  const d = $('#prefDlg').querySelector('.delguest'); if (d) d.remove();
+  courtPicker($('#dlgCourt'), sel);
+  $('#prefDlgSave').onclick = async () => {
+    try { await rpc('vq_admin_set_prefs', { p_code: code, p_member_id: m.id, p_prefs: sel }); await loadMembers(); renderMemberList(); $('#prefDlg').close(); toast('저장했어요'); }
+    catch (e) { toast(e.message); }
+  };
+  $('#prefDlg').showModal();
+}
+
+// ===== 시작 =====
+(async () => {
+  const c = store.get('vq_code', null);
+  if (c) { try { await login(c); return; } catch { store.set('vq_code', null); } }
+  $('#codeInput').focus();
+})();
+</script>
+</body>
+</html>
