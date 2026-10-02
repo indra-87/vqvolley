@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>VQ 포지션</title>
+<title>VQ 팀·포지션</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏐</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -122,7 +122,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 <!-- 로그인 -->
 <div id="loginView" class="login">
   <div class="brand"><span class="bv">V</span><span class="bq">Q</span></div>
-  <h1 style="margin-top:14px">포지션 배정</h1>
+  <h1 style="margin-top:14px">팀·포지션 배정</h1>
   <p class="lead">개인확인코드 4자리를 입력하세요.</p>
   <form id="loginForm" class="codebox" autocomplete="off">
     <input id="codeInput" inputmode="numeric" pattern="[0-9]*" maxlength="4" aria-label="개인확인코드" placeholder="····">
@@ -711,7 +711,7 @@ function renderTeams() {
     box.append(el('h2', { style: 'font-size:17px;margin:4px 0 8px' }, g === '남' ? '남자부' : '여자부'));
     box.append(el('div', { class: 'teams' }, ...['V', 'Q'].map(side => el('div', { class: 'team ' + side },
       el('h3', {}, side + '팀', el('span', { class: 'count' }, t[side].length + '명')),
-      el('ul', {}, ...t[side].map(p => { p = freshen(p); return el('li', { class: 'pl' }, el('button', { on: { click: () => movePlayer(g, side, p.key) } },
+      el('ul', {}, ...membersFirst(t[side].map(freshen)).map(p => { return el('li', { class: 'pl' }, el('button', { on: { click: () => movePlayer(g, side, p.key) } },
         el('span', {}, p.name + (p.guest ? ' (G)' : '')), el('span', { class: 'pf' }, prefText(p.prefs))),
         el('button', { class: 'rm', 'aria-label': p.name + ' 빼기', title: '팀에서 빼기', on: { click: () => removePlayer(g, side, p.key) } }, '×')); }))
     ))));
@@ -768,10 +768,12 @@ function addLoose(p) {
   t[side].push(p); S.sets = null; save(); renderTeams(); renderSaved();
   toast(`${p.name} → ${gName(p.gender)} ${side}팀`);
 }
+// 팀 명단: 정회원이 위, 게스트((G))는 맨 아래 (각 그룹 안의 순서는 유지)
+const membersFirst = arr => [...arr.filter(p => !p.guest), ...arr.filter(p => p.guest)];
 function teamList() { // [{label, side, players}]
   const out = [];
   GORDER.forEach(g => { const t = S.teams && S.teams[g]; if (!t) return;
-    ['V', 'Q'].forEach(side => out.push({ g, side, label: `${g === '남' ? '남자' : '여자'} ${side}팀`, players: t[side].map(freshen) })); });
+    ['V', 'Q'].forEach(side => out.push({ g, side, label: `${g === '남' ? '남자' : '여자'} ${side}팀`, players: membersFirst(t[side].map(freshen)) })); });
   return out;
 }
 async function ensureTeams() {
@@ -876,7 +878,6 @@ function drawTeam(gs) {
       txt(x, t.players.length + '명', X + w - 16, y + 22, { size: 15, w: 700, color: fg, align: 'right' });
       t.players.forEach((p, k) => {
         txt(x, p.name + (p.guest ? ' (G)' : ''), X + 16, y + 64 + k * 34, { size: 17, w: 650 });
-        txt(x, p.prefs.length ? p.prefs.join(' · ') : '', X + w - 14, y + 64 + k * 34, { size: 12, w: 500, color: C.mute, align: 'right', max: w - 120 });
       });
     });
     y += 56 + rowsFor(g) * 34 + 20;
@@ -896,9 +897,8 @@ function drawCourt(x, X, Y, w, st, { cellH = 56, nameSize = 16 } = {}) {
     const p = st.court[k];
     rr(x, cx, cy, gw, cellH - 4, 8, p ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.05)');
     txt(x, pos, cx + gw / 2, cy + cellH * 0.27, { size: Math.round(cellH * 0.2), w: 600, color: '#c9d4f2', align: 'center', max: gw - 6 });
-    const hit = p && (p.prefs || []).includes(pos);
     txt(x, p ? p.name + (p.guest ? '(G)' : '') : '빈자리', cx + gw / 2, cy + cellH * 0.64,
-      { size: p ? nameSize : nameSize - 3, w: p ? 750 : 500, color: !p ? '#8ea0d8' : hit ? '#ffd84d' : '#fff', align: 'center', max: gw - 8 });
+      { size: p ? nameSize : nameSize - 3, w: p ? 750 : 500, color: !p ? '#8ea0d8' : '#fff', align: 'center', max: gw - 8 });
   });
   return h;
 }
@@ -929,7 +929,6 @@ function drawSetGrid(title, rows) {
     });
     y += rowH(r);
   });
-  txt(x, '노란 이름은 본인이 희망한 포지션', W - 24, H - 18, { size: 13, color: C.mute, align: 'right' });
   return c;
 }
 
@@ -951,9 +950,7 @@ function drawQuick(gOnly) {
   const benchRow = g => rows.some(r => r.g === g && r.sets[n - 1] && r.sets[n - 1].bench.length) ? 30 : 0;
   const H = 86 + genders.reduce((a, g) => a + 44 + courtH + benchRow(g) + 24, 0) + 24;
   const cur = rows.find(r => r.sets[n - 1]);
-  const mode = cur && cur.sets[n - 1].mode === 'rand' ? '희망 무시' : '노란 이름은 본인이 희망한 포지션';
   const [c, x] = newCanvas(W, H); header(x, W, `${gName(gOnly)} ${n}세트 포지션`);
-  txt(x, mode, W - 24, H - 16, { size: 13, color: C.mute, align: 'right' });
   let y = 86;
   genders.forEach(g => {
     rows.filter(r => r.g === g).forEach((r, i) => {
