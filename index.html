@@ -344,6 +344,13 @@ const PREF_WEIGHT_MEMBER = 10;
 const PREF_WEIGHT_GUEST = 9;
 const prefWeight = p => p.guest ? PREF_WEIGHT_GUEST : PREF_WEIGHT_MEMBER;
 
+// 팀에서 그 포지션을 희망하는 사람이 딱 1명이면, 5세트 중 3세트(SOLE_QUOTA)까지는 거의 감점 없이 맡게 하고
+// 3번을 채운 뒤에는 큰 감점을 줘서 독점을 막는다. 연속 세트는 피한다 (1·3·5세트 패턴).
+// (일반: 반복 1회당 6, 직전 세트와 같으면 +8)
+const REPEAT_PENALTY = 6, LAST_PENALTY = 8;
+const SOLE_QUOTA = 3, SOLE_REPEAT_PENALTY = 0.5, SOLE_OVER_PENALTY = 14, SOLE_LAST_PENALTY = 14;
+const repeatPenalty = (k, sole) => !sole ? k * REPEAT_PENALTY : k < SOLE_QUOTA ? k * SOLE_REPEAT_PENALTY : k * SOLE_REPEAT_PENALTY + SOLE_OVER_PENALTY;
+
 // 팀 나누기 평가: 포지션마다 그 포지션을 원하는 사람이 팀 안에 있을수록 점수를 얻되,
 // 같은 포지션 희망자가 한 팀에 몰리면 점수가 줄어든다 (두 번째부터 0.6배, 세 번째는 0.36배...).
 // → 희망자가 적은 포지션은 팀마다 한 명씩 흩어지는 쪽이 높은 점수. 팀 인원이 9명을 넘어도 전원을 반영한다.
@@ -385,10 +392,13 @@ function splitTeams(players, starts = 40) {
 }
 
 // 교체대기 선정: 대기 횟수 적은 사람 우선으로 코트에 (동률은 랜덤)
-function pickBench(players, benchCount) {
+// restFirst: 대기 횟수가 같을 때 먼저 대기로 보낼 사람 (어차피 이번 세트에 쉬어야 하는 사람)
+// keepCourt: 대기 횟수가 같을 때 코트에 남길 사람 (이번 세트에 자기 포지션을 맡아야 하는 사람)
+function pickBench(players, benchCount, restFirst = new Set(), keepCourt = new Set()) {
   const extra = players.length - 9;
   if (extra <= 0) return { court: players.slice(), bench: [] };
-  const order = shuffle(players).sort((a, b) => (benchCount[b.key] || 0) - (benchCount[a.key] || 0));
+  const order = shuffle(players).sort((a, b) =>
+    ((benchCount[b.key] || 0) - (benchCount[a.key] || 0)) || (((restFirst.has(a.key) ? 1 : 0) - (keepCourt.has(a.key) ? 1 : 0)) - ((restFirst.has(b.key) ? 1 : 0) - (keepCourt.has(b.key) ? 1 : 0))));
   // 대기 많이 한 사람이 앞 → 뒤쪽에서 extra명을 대기로
   return { court: order.slice(0, 9), bench: order.slice(9) };
 }
@@ -405,9 +415,20 @@ function nextSet(players, history = [], usePref = true) {
   });
   const prev = history[history.length - 1];
   if (prev) prev.court.forEach((p, i) => { if (p) last[p.key] = i; });
-  const { court, bench } = pickBench(players, benchCount);
-  const pos = placeOnCourt(court, (p, i) =>
-    (usePref && prefers(p, i) ? -prefWeight(p) : 0) + count[p.key][i] * 6 + (last[p.key] === i ? 8 : 0) + Math.random() * 3);
+  const wanters = POS.map((_, i) => players.filter(p => prefers(p, i)).length);
+  // 직전 세트에 '나만 희망한 포지션'을 맡았던 사람은 이번엔 그 포지션을 쉬므로, 대기가 필요하면 이런 사람부터 보낸다
+  const restFirst = new Set();
+  if (usePref && prev) prev.court.forEach((p, i) => { if (p && prefers(p, i) && wanters[i] === 1) restFirst.add(p.key); });
+  const keepCourt = new Set();   // 나만 희망한 포지션을 아직 3번 못 채웠고 직전 세트에 쉬었던 사람은 코트에 남긴다
+  if (usePref) players.forEach(p => POS.forEach((_, i) => { if (prefers(p, i) && wanters[i] === 1 && count[p.key][i] < SOLE_QUOTA && last[p.key] !== i) keepCourt.add(p.key); }));
+  const { court, bench } = pickBench(players, benchCount, restFirst, keepCourt);
+  const pos = placeOnCourt(court, (p, i) => {
+    const sole = usePref && prefers(p, i) && wanters[i] === 1;
+    return (usePref && prefers(p, i) ? -prefWeight(p) : 0)
+      + repeatPenalty(count[p.key][i], sole)
+      + (last[p.key] === i ? (sole ? SOLE_LAST_PENALTY : LAST_PENALTY) : 0)
+      + Math.random() * 3;
+  });
   return { court: pos, bench };
 }
 
