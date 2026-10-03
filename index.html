@@ -268,7 +268,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
       </div>
       <div class="row">
         <select class="inp" id="setCount" style="width:auto">
-          <option value="3">3세트</option><option value="4">4세트</option><option value="5" selected>5세트</option>
+          <option value="3">3세트</option><option value="4" selected>4세트</option><option value="5">5세트</option>
         </select>
         <button class="btn" id="setsBtn">세트 배치</button>
       </div>
@@ -557,7 +557,7 @@ const GORDER = ['여', '남'];   // 여자 게임을 먼저 하므로 여자부�
 const gName = g => g === '여' ? '여자부' : '남자부';
 let me = null, code = null, members = [];
 const canEdit = () => !!(me && me.is_admin && me.can_edit);   // 정서준: 직접 수정, 팀·세트 짜는 횟수 제한 없음
-const MAX_TRIES = 5;          // 정서준 외 관리자가 한 회차에 짤 수 있는 횟수 (팀 5번, 팀 안마다 세트 5번)
+const MAX_TRIES = 5;          // 정서준 외 관리자가 한 회차에 짤 수 있는 횟수 (팀 5번 / 세트 배치는 여자부 5번·남자부 5번)
 const KEEP_MASTER = 12;       // 정서준은 횟수 제한이 없는 대신 저장 용량 때문에 최근 12개 안까지만 보관
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const todayStr = () => new Date().toLocaleDateString('sv-SE');
@@ -1013,19 +1013,28 @@ async function ensureTeams() {
 }
 
 // ===== 세트 배치 =====
-function setsLeft() { if (canEdit()) return Infinity; const p = selPlan(); return MAX_TRIES - (p ? p.setPlans.length : 0); }
+// 세트 배치 횟수는 여자부 5번, 남자부 5번 따로 센다. 전체 다시 배치는 두 부가 1번씩, 한 부(또는 한 팀)만 다시 배치하면 그 부만 1번 줄어든다
+const usedSets = (plan, g) => plan ? plan.setPlans.filter(sp => (sp.gens || GORDER).includes(g)).length : 0;
+const setsLeftOf = g => canEdit() ? Infinity : MAX_TRIES - usedSets(selPlan(), g);
+const teamGens = () => GORDER.filter(g => teamList().some(t => t.g === g && t.players.length));
+const leftText = gs => gs.map(g => `${gName(g)} ${Math.max(setsLeftOf(g), 0)}번`).join(' · ');
 const newRow = (t, n) => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) });
 // 새 세트 안을 만든다. g(·side)를 주면 그 성별(·팀)만 새로 짜고, 나머지는 지금 선택한 안 그대로 가져온다
 async function genSetPlan(g, side) {
   if (!(await ensureTeams())) return;
   const plan = selPlan(); if (!plan) return;
-  if (setsLeft() <= 0) { toast(`세트 배치는 ${MAX_TRIES}번까지만 할 수 있어요. 아래 기록 중에서 한 가지를 선택해 주세요`); return; }
+  const gens = g ? [g] : teamGens(), out = gens.filter(x => setsLeftOf(x) <= 0);
+  if (out.length) {
+    toast(g ? `${gName(g)} 세트 배치는 ${MAX_TRIES}번을 모두 사용했어요. 아래 기록 중에서 선택해 주세요`
+            : `${out.map(gName).join('·')}의 남은 횟수가 없어서 전체 다시 배치는 할 수 없어요. 남은 쪽만 다시 배치하거나 기록 중에서 선택해 주세요`);
+    return;
+  }
   const n = +$('#setCount').value, base = selSetPlan();
   const old = base ? Object.fromEntries(base.rows.map(r => [r.label, r])) : {};
   const rows = teamList().map(t => (g && base && old[t.label] && !(t.g === g && (!side || t.side === side)))
     ? JSON.parse(JSON.stringify(old[t.label])) : newRow(t, n));
   const note = g && base ? `${gName(g)}${side ? ' ' + side + '팀' : ''}만 다시 배치` : '';
-  const sp = { id: uid('S'), no: (plan.setSeq = (plan.setSeq || 0) + 1), at: Date.now(), by: me.name, note, edited: false, rows };
+  const sp = { id: uid('S'), no: (plan.setSeq = (plan.setSeq || 0) + 1), at: Date.now(), by: me.name, note, edited: false, gens, rows };
   plan.setPlans.push(sp); plan.setSel = sp.id; trimMaster(plan.setPlans, sp.id);
   relink(); save(); renderSaved();
   if (note) toast(note + '했어요');
@@ -1085,17 +1094,17 @@ function renderQuick() {
 // 다시 배치 버튼들: 성별마다 한 줄 [부 전체 / V팀 / Q팀]. 누를 때마다 새 안이 기록되고 자동으로 선택된다
 function regenButtons(sg) {
   if (!sg.length) return [];
-  const left = setsLeft(), off = left <= 0;
+  const gl = sg.filter(g => setsLeftOf(g) <= 0);
   const live = (g, side) => S.sets.some(r => r.g === g && r.side === side && r.sets.some(st => st.court.some(Boolean)));
-  const rows = [el('p', { class: 'hint', style: 'margin:4px 0 -2px' }, '다시 배치' + (left === Infinity ? '' : ` (남은 횟수 ${Math.max(left, 0)}번)`))];
+  const rows = [el('p', { class: 'hint', style: 'margin:4px 0 -2px' }, '다시 배치' + (canEdit() ? '' : ` (남은 횟수: ${leftText(sg)})`))];
   sg.forEach(g => {
     const b = [];
-    if (sg.length > 1) b.push(el('button', { class: 'btn ghost sm', disabled: off, on: { click: () => regenSets(g) } }, gName(g) + ' 전체'));
+    if (sg.length > 1) b.push(el('button', { class: 'btn ghost sm', disabled: setsLeftOf(g) <= 0, on: { click: () => regenSets(g) } }, gName(g) + ' 전체'));
     ['V', 'Q'].filter(side => live(g, side)).forEach(side =>
-      b.push(el('button', { class: 'btn ghost sm', disabled: off, on: { click: () => regenSets(g, side) } }, `${g === '여' ? '여자' : '남자'} ${side}팀`)));
+      b.push(el('button', { class: 'btn ghost sm', disabled: setsLeftOf(g) <= 0, on: { click: () => regenSets(g, side) } }, `${g === '여' ? '여자' : '남자'} ${side}팀`)));
     rows.push(b);
   });
-  if (off) rows.push(el('p', { class: 'hint', style: 'color:var(--err)' }, `${MAX_TRIES}번을 모두 사용했어요. 아래 기록 중에서 한 가지를 선택해 주세요.`));
+  if (gl.length) rows.push(el('p', { class: 'hint', style: 'color:var(--err)' }, `${gl.map(gName).join('·')}은 ${MAX_TRIES}번을 모두 사용했어요.` + (gl.length < sg.length ? ' 남은 쪽만 다시 배치할 수 있어요.' : ' 아래 기록 중에서 한 가지를 선택해 주세요.')));
   return rows;
 }
 // 직접 수정 버튼: 정서준만, 팀마다 한 개 (세트 배치)
@@ -1116,12 +1125,12 @@ function editButtons(sg) {
 }
 function renderSaved() {
   const sg = S.sets ? GORDER.filter(g => S.sets.some(r => r.g === g && r.sets.length && r.sets.some(st => st.court.some(Boolean)))) : [];
-  const left = setsLeft(), plan = selPlan();
-  $('#setsBtn').textContent = selSetPlan() ? '전체 다시 배치' : '세트 배치';
-  $('#setsBtn').disabled = left <= 0;
+  const plan = selPlan(), has = !!selSetPlan(), gs0 = teamGens();
+  $('#setsBtn').textContent = has ? '전체 다시 배치' : '세트 배치';
+  $('#setsBtn').disabled = has && gs0.some(g => setsLeftOf(g) <= 0);
   const tr = $('#setsTries');
   tr.classList.toggle('hidden', canEdit());
-  tr.textContent = `세트 배치는 같은 팀 안에서 최대 ${MAX_TRIES}번까지 짤 수 있어요.` + (plan ? ` (남은 횟수 ${Math.max(left, 0)}번)` : '');
+  tr.textContent = `세트 배치는 여자부 ${MAX_TRIES}번, 남자부 ${MAX_TRIES}번까지 짤 수 있어요. 전체 다시 배치는 두 부가 1번씩 줄어요.` + (plan ? ` (남은 횟수: ${leftText(gs0)})` : '');
   resultBlock($('#setsImgBox'), 'sets', [
     ...(sg.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawSets(sg), fname: '세트배치' }] : []),
     ...sg.map(g => ({ id: g, label: gName(g), draw: () => drawSets([g]), fname: '세트배치_' + gName(g) }))
@@ -1146,7 +1155,7 @@ function renderSetHistory() {
   const box = $('#setsHistory'); box.innerHTML = '';
   const plan = selPlan(); if (!plan || !plan.setPlans.length) return;
   box.append(el('h2', { style: 'font-size:17px;margin:8px 0 0' }, '짠 기록'),
-    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 팀 안으로 짠 세트 안 ${plan.setPlans.length}개가 기록돼 있어요.` : `${plan.setPlans.length}번 짰어요 (최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
+    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 팀 안으로 짠 세트 안 ${plan.setPlans.length}개가 기록돼 있어요.` : `사용한 횟수: ${teamGens().map(g => `${gName(g)} ${usedSets(plan, g)}번`).join(' · ')} (각 최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
   plan.setPlans.forEach(sp => {
     const on = sp.id === plan.setSel, rows = sp.rows.filter(r => r.sets.length);
     const img = el('img', { alt: sp.no + '안', src: rowsImage(rows, 1) });
