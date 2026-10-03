@@ -90,11 +90,11 @@ textarea:focus,.inp:focus{border-color:var(--v);outline:none}
 .team.V h3{color:var(--v)} .team.Q h3{color:var(--q-ink)}
 .team ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .team li.pl{display:flex;gap:2px;align-items:stretch}
-.team li.pl>button:first-child{flex:1 1 0;min-width:0;width:auto}
+.team li.pl>button:first-child,.team li.pl>.nm{flex:1 1 0;min-width:0;width:auto}
 .team li .rm{width:28px;flex:none;padding:0;background:transparent;color:var(--mute);padding:6px 8px;font-size:18px;line-height:1}
 .team li button{width:100%;text-align:left;border:0;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
 .team li .pf{font-weight:400;font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;text-align:right}
-.team li button>span:first-child{white-space:nowrap;flex:none}
+.team li button>span:first-child,.team li .nm>span:first-child{white-space:nowrap;flex:none}
 .team li{min-width:0}
 
 .result img{width:100%;border-radius:10px;border:1px solid var(--line);display:block;cursor:zoom-in}
@@ -147,7 +147,30 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 .dragghost{position:fixed;z-index:90;pointer-events:none;background:var(--q);color:var(--q-ink);padding:8px 16px;border-radius:10px;font-weight:800;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.35);transform:translate(-50%,-135%)}
 .ctl-tag{display:inline-block;min-width:64px;text-align:center;font-weight:700;font-size:13px;padding:4px 10px;border-radius:999px}
 .ctl-tag.V{background:var(--v-soft);color:var(--v)} .ctl-tag.Q{background:var(--q-soft);color:var(--q-ink)}
-@media (max-width:520px){.team li.pl>button:first-child{flex-direction:column;align-items:flex-start;gap:0}.team li .pf{text-align:left;width:100%;flex:none}}
+.team li .nm{width:100%;text-align:left;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:6px;min-width:0}
+.rec{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.rec.sel{border-color:var(--v);box-shadow:0 0 0 1px var(--v)}
+.rec .rh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.rec .rn{font-weight:800;font-size:16px}
+.rec .rmeta{font-size:12px;color:var(--mute)}
+.rec .selbadge{color:var(--v);font-weight:800;font-size:14px}
+.rec .tl{font-size:13px;line-height:1.55}
+.rec .tl b{display:inline-block;min-width:4.4em}
+.rec img{width:100%;border:1px solid var(--line);border-radius:8px;cursor:zoom-in;display:block}
+.pubcard{border:1.5px solid var(--v);background:var(--v-soft)}
+.pubcard .ok{color:var(--ok);font-weight:700;font-size:14px}
+.pubcard .warn{color:var(--err);font-weight:700;font-size:14px}
+.assign{border:2px solid var(--v);background:#fff}
+.assign .asub{color:var(--mute);font-size:14px;margin-top:2px}
+.assign .al{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.assign .ar{display:flex;align-items:center;gap:12px;background:var(--v-soft);border-radius:12px;padding:12px 14px}
+.assign .ar .sn{flex:none;width:54px;font-weight:800;color:var(--v);font-size:16px}
+.assign .ar .ps{font-size:22px;font-weight:850;letter-spacing:-.01em}
+.assign .ar.bench{background:#eef0f3}
+.assign .ar.bench .sn{color:var(--mute)}
+.assign .ar.bench .ps{color:var(--mute);font-weight:700;font-size:18px}
+.assign .hope{margin-left:auto;flex:none;font-size:12px;font-weight:800;background:var(--q);color:var(--q-ink);border-radius:999px;padding:3px 10px}
+@media (max-width:520px){.team li.pl>button:first-child,.team li.pl>.nm{flex-direction:column;align-items:flex-start;gap:0}.team li .pf{text-align:left;width:100%;flex:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -178,6 +201,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 
     <!-- 내 포지션 -->
     <section class="panel" data-tab="me">
+      <div class="card assign hidden" id="myAssign"></div>
       <div>
         <h2>내 희망 포지션</h2>
         <p class="mute">원하는 칸을 모두 누르세요. 하나도 안 고르면 어느 포지션이든 괜찮다는 뜻이에요.</p>
@@ -228,11 +252,12 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
     <!-- 팀 -->
     <section class="panel" data-tab="team">
       <div class="row" style="justify-content:space-between">
-        <div><h2>V팀 · Q팀 나누기</h2><p class="mute">이름을 누르면 상대 팀으로 옮겨요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.</p></div>
+        <div><h2>V팀 · Q팀 나누기</h2><p class="mute" id="teamHint"></p></div>
         <div class="row"><button class="btn ghost hidden" id="teamReset">팀 초기화</button><button class="btn" id="splitBtn">팀 나누기</button></div>
       </div>
       <div id="teamBox"></div>
       <div class="result hidden" id="teamImgBox"></div>
+      <div id="teamHistory" style="display:flex;flex-direction:column;gap:10px"></div>
     </section>
 
     <!-- 세트 -->
@@ -247,7 +272,10 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         </select>
         <button class="btn" id="setsBtn">세트 배치</button>
       </div>
+      <p class="hint" id="setsTries" style="margin:-6px 0 0"></p>
       <div class="result hidden" id="setsImgBox"></div>
+      <div id="setsPublish"></div>
+      <div id="setsHistory" style="display:flex;flex-direction:column;gap:10px"></div>
     </section>
 
     <!-- 즉석 -->
@@ -347,20 +375,13 @@ function hungarian(C) {
   return res;
 }
 
-// 코트에 설 선수(최대 9명)를 9개 포지션에 배정. costFn(player, posIndex)
-// 9명 미만이면 빈자리 생김 (세터는 가능한 비우지 않음)
-function placeOnCourt(players, costFn) {
-  const N = 9, C = [];
-  for (let r = 0; r < N; r++) {
-    const row = [];
-    for (let c = 0; c < N; c++) {
-      if (r < players.length) row.push(costFn(players[r], c));
-      else row.push((POS[c] === '세터' ? 30 : 0) + Math.random() * 3); // 빈자리
-    }
-    C.push(row);
-  }
-  const a = hungarian(C), court = Array(N).fill(null);
-  for (let r = 0; r < players.length; r++) court[a[r]] = players[r];
+// 코트에 설 선수(최대 9명)를 빈자리(empties)를 뺀 칸에 배정. costFn(player, posIndex)
+function placeOnCourt(players, costFn, empties = new Set()) {
+  const cols = []; for (let c = 0; c < 9; c++) if (!empties.has(c)) cols.push(c);
+  const court = Array(9).fill(null);
+  if (!players.length) return court;
+  const a = hungarian(players.map(p => cols.map(c => costFn(p, c))));
+  players.forEach((p, r) => { court[cols[a[r]]] = p; });
   return court; // court[posIndex] = player | null
 }
 
@@ -371,6 +392,30 @@ const prefers = (p, i) => (p.prefs || []).includes(POS[i]);
 const PREF_WEIGHT_MEMBER = 10;
 const PREF_WEIGHT_GUEST = 9;
 const prefWeight = p => p.guest ? PREF_WEIGHT_GUEST : PREF_WEIGHT_MEMBER;
+
+// ===== 빈자리 규칙 =====
+// 인원이 9명보다 적으면 (9 - 인원)개의 칸을 비운다. 비우는 순서(낮을수록 먼저):
+//   1 센터(속공) → 2 센터백 → 3 백차 → 4 레프트백·라이트백(동순위) → 6 라이트 → 7 세터 → 8 앞차 → (레프트)
+// 단, 그 포지션을 희망하는 사람이 있으면 규칙보다 희망을 우선한다. 희망자 수가 가장 적은 칸부터 비우고,
+// 희망자 수가 같을 때만 위 순서를 따른다. (세터는 희망자가 없어도 최소 1명이 원하는 것으로 보고 가장 늦게 비운다)
+const EMPTY_RANK = { '센터(속공)': 1, '센터백': 2, '백차': 3, '레프트백': 4, '라이트백': 4, '라이트': 6, '세터': 7, '앞차': 8, '레프트': 9 };
+function chooseEmpties(players, usePref, nEmpty) {
+  if (nEmpty <= 0) return new Set();
+  const short = players.length <= SHORT_TEAM_MAX;        // 인원이 적으면 뒷자리 희망은 칸을 남길 이유로 세지 않는다
+  const cand = POS.map((pos, i) => {
+    let d = usePref && !(short && isBack(i)) ? players.filter(p => prefers(p, i)).length : 0;
+    if (pos === '세터') d = Math.max(d, 1);
+    return { i, d, r: EMPTY_RANK[pos], z: Math.random() };
+  }).sort((a, b) => a.d - b.d || a.r - b.r || a.z - b.z);
+  return new Set(cand.slice(0, nEmpty).map(o => o.i));
+}
+
+// ===== 인원이 적을 때는 앞자리 우선 =====
+// 인원이 SHORT_TEAM_MAX명 이하이면, 뒷자리(레프트백·센터백·라이트백) 희망은 반영하지 않고
+// 뒷자리 칸에 감점을 줘서 앞자리(나머지 6칸)부터 채운다.
+const BACK_POS = ['레프트백', '센터백', '라이트백'];
+const SHORT_TEAM_MAX = 7, BACK_PENALTY = 4;
+const isBack = i => BACK_POS.includes(POS[i]);
 
 // 팀에서 그 포지션을 희망하는 사람이 딱 1명이면, 5세트 중 3세트(SOLE_QUOTA)까지는 거의 감점 없이 맡게 하고
 // 3번을 채운 뒤에는 큰 감점을 줘서 독점을 막는다. 연속 세트는 피한다 (1·3·5세트 패턴).
@@ -450,13 +495,17 @@ function nextSet(players, history = [], usePref = true) {
   const keepCourt = new Set();   // 나만 희망한 포지션을 아직 3번 못 채웠고 직전 세트에 쉬었던 사람은 코트에 남긴다
   if (usePref) players.forEach(p => POS.forEach((_, i) => { if (prefers(p, i) && wanters[i] === 1 && count[p.key][i] < SOLE_QUOTA && last[p.key] !== i) keepCourt.add(p.key); }));
   const { court, bench } = pickBench(players, benchCount, restFirst, keepCourt);
+  const empties = chooseEmpties(court, usePref, 9 - court.length);
+  const short = court.length <= SHORT_TEAM_MAX;
   const pos = placeOnCourt(court, (p, i) => {
-    const sole = usePref && prefers(p, i) && wanters[i] === 1;
-    return (usePref && prefers(p, i) ? -prefWeight(p) : 0)
+    const backIgnored = short && isBack(i);               // 인원이 적으면 뒷자리 희망은 반영하지 않는다
+    const sole = usePref && prefers(p, i) && wanters[i] === 1 && !backIgnored;
+    return (usePref && prefers(p, i) && !backIgnored ? -prefWeight(p) : 0)
+      + (backIgnored ? BACK_PENALTY : 0)
       + repeatPenalty(count[p.key][i], sole)
       + (last[p.key] === i ? (sole ? SOLE_LAST_PENALTY : LAST_PENALTY) : 0)
       + Math.random() * 3;
-  });
+  }, empties);
   return { court: pos, bench };
 }
 
@@ -467,7 +516,7 @@ function setsAssign(players, nSets = 5) {
   return sets;
 }
 
-if (typeof module !== 'undefined') module.exports = { POS, hungarian, placeOnCourt, splitTeams, nextSet, setsAssign, shuffle };
+if (typeof module !== 'undefined') module.exports = { POS, hungarian, placeOnCourt, splitTeams, nextSet, setsAssign, shuffle, chooseEmpties, EMPTY_RANK };
 
 </script>
 <script>
@@ -507,18 +556,53 @@ async function rpc(fn, args) {
 const GORDER = ['여', '남'];   // 여자 게임을 먼저 하므로 여자부가 위
 const gName = g => g === '여' ? '여자부' : '남자부';
 let me = null, code = null, members = [];
+const canEdit = () => !!(me && me.is_admin && me.can_edit);   // 정서준: 직접 수정, 팀·세트 짜는 횟수 제한 없음
+const MAX_TRIES = 5;          // 정서준 외 관리자가 한 회차에 짤 수 있는 횟수 (팀 5번, 팀 안마다 세트 5번)
+const KEEP_MASTER = 12;       // 정서준은 횟수 제한이 없는 대신 저장 용량 때문에 최근 12개 안까지만 보관
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+const todayStr = () => new Date().toLocaleDateString('sv-SE');
+function nextSaturday() { const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7)); return d.toLocaleDateString('sv-SE'); }
+
+// 작업 상태 S: 날짜(회차)별 rounds[날짜] = { plans: [팀 안...], sel: 선택한 팀 안 id, seq }
+//   팀 안 = { id, no, at, by, teams:{여:{V,Q},남:{V,Q}}, setPlans:[세트 안...], setSel, setSeq }
+//   세트 안 = { id, no, at, by, note, edited, rows:[{label, side, g, sets:[{court,bench}]}] }
+// S.teams / S.sets 는 '선택한 안'을 가리키는 작업용 연결(relink)이라 저장하지 않는다.
 function normalize(d) {
-  d = Object.assign({ date: new Date().toLocaleDateString('sv-SE'), attend: [], guests: [], teams: null, sets: null, quick: null }, d || {});
+  d = Object.assign({ date: nextSaturday(), attend: [], guests: [], rounds: {}, quick: null }, d || {});
   if (d.quick && d.quick.teams) d.quick = null; // 예전 형식
+  if (d.teams && !Object.keys(d.rounds).length) {  // 예전 형식(안 기록 없음) → 안 1개로 옮김
+    const plan = { id: uid('T'), no: 1, at: Date.now(), by: '이전 기록', teams: d.teams, setPlans: [], setSel: null, setSeq: 0 };
+    if (d.sets) { plan.setPlans.push({ id: uid('S'), no: 1, at: Date.now(), by: '이전 기록', note: '', edited: false, rows: d.sets }); plan.setSel = plan.setPlans[0].id; plan.setSeq = 1; }
+    d.rounds[d.date] = { plans: [plan], sel: plan.id, seq: 1 };
+  }
+  delete d.teams; delete d.sets;
   return d;
 }
 let S = normalize(store.get('vq_state', null));
+const roundOf = () => S.rounds[S.date] || null;
+function R() { return S.rounds[S.date] || (S.rounds[S.date] = { plans: [], sel: null, seq: 0 }); }
+const selPlan = () => { const r = roundOf(); return r && r.sel ? r.plans.find(p => p.id === r.sel) || null : null; };
+const selSetPlan = () => { const p = selPlan(); return p && p.setSel ? p.setPlans.find(x => x.id === p.setSel) || null : null; };
+function relink() { const p = selPlan(), sp = selSetPlan(); S.teams = p ? p.teams : null; S.sets = sp ? sp.rows : null; }
+relink();
+// 정서준은 오래된 안부터 정리, 선택한 안은 지우지 않는다
+function trimMaster(list, selId) { if (!canEdit()) return; while (list.length > KEEP_MASTER) { const i = list.findIndex(x => x.id !== selId); if (i < 0) break; list.splice(i, 1); } }
+// 새 회차(지난 날짜)가 되면 날짜를 가까운 토요일로 넘기고 참석자·즉석 기록을 비운다
+function rollDate() {
+  if (S.date && S.date >= todayStr()) return false;
+  S.date = nextSaturday(); S.attend = []; S.guests = []; S.quick = null; relink(); return true;
+}
+function snapshot() {   // 저장할 내용: 선택 연결(teams/sets)은 빼고, 60일 지난 회차는 정리
+  const cut = new Date(); cut.setDate(cut.getDate() - 60); const cs = cut.toLocaleDateString('sv-SE'), rounds = {};
+  Object.keys(S.rounds).forEach(k => { if (k >= cs || k === S.date) rounds[k] = S.rounds[k]; });
+  return { date: S.date, attend: S.attend, guests: S.guests, quick: S.quick, rounds };
+}
 
 // 작업 상태는 휴대폰에 먼저 저장하고, 관리자면 서버(관리자 공용)에도 저장
 let serverVersion = store.get('vq_ver', 0), syncTimer = null, syncing = false, dirty = false;
 function setSync(t, bad) { const e = $('#syncStat'); if (e) { e.textContent = t; e.classList.toggle('bad', !!bad); } }
 function save() {
-  store.set('vq_state', S);
+  store.set('vq_state', snapshot());
   if (!me || !me.is_admin) return;
   dirty = true; setSync('저장 중');
   clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 700);
@@ -527,7 +611,7 @@ async function pushState() {
   if (syncing) { clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 500); return; }
   syncing = true; dirty = false;
   try {
-    const r = await rpc('vq_admin_save_state', { p_code: code, p_data: S, p_version: serverVersion });
+    const r = await rpc('vq_admin_save_state', { p_code: code, p_data: snapshot(), p_version: serverVersion });
     if (r.conflict) {
       applyServer(r);
       toast(`${r.updated_by || '다른 관리자'} 님이 먼저 바꾼 내용으로 맞췄어요. 방금 한 작업을 다시 해주세요`);
@@ -540,9 +624,9 @@ async function pushState() {
   if (dirty) { clearTimeout(syncTimer); syncTimer = setTimeout(pushState, 300); }
 }
 function applyServer(r) {
-  S = normalize(r.data); serverVersion = r.version;
-  store.set('vq_state', S); store.set('vq_ver', serverVersion);
-  setSync('공유 저장됨'); renderAll();
+  S = normalize(r.data); relink(); serverVersion = r.version;
+  store.set('vq_state', snapshot()); store.set('vq_ver', serverVersion);
+  setSync('공유 저장됨'); if (rollDate()) save(); renderAll();
 }
 async function pullState(first) {
   if (!me || !me.is_admin || dirty || syncing) return;
@@ -623,7 +707,8 @@ function enterApp() {
   $('#tabs').innerHTML = '';
   if (tabs.length > 1) tabs.forEach(([id, label]) => $('#tabs').append(el('button', { role: 'tab', 'data-id': id, on: { click: () => showTab(id) } }, label)));
   renderMine();
-  if (me.is_admin) { renderAttend(); renderTeams(); renderMemberList(); renderSaved(); pullState(true); }
+  loadMine();
+  if (me.is_admin) { if (rollDate()) save(); renderAttend(); renderTeams(); renderMemberList(); renderSaved(); pullState(true); loadPubInfo(); }
   showTab(me.is_admin ? store.get('vq_tab', 'attend') : 'me');
 }
 function showTab(id) {
@@ -631,6 +716,7 @@ function showTab(id) {
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.id === id)));
   if (me.is_admin) store.set('vq_tab', id);
   if (me.is_admin && id === 'team') renderTeams();
+  if (me.is_admin && id === 'sets') loadPubInfo();
   window.scrollTo(0, 0);
 }
 
@@ -677,7 +763,7 @@ $('#attendApply').addEventListener('click', () => {
   toast(`${found.length}명 반영했어요`);
 });
 $('#attendClear').addEventListener('click', () => { if (confirm('참석자와 게스트를 모두 비울까요?')) { S.attend = []; S.guests = []; save(); renderAttend(); } });
-$('#gameDate').addEventListener('change', e => { S.date = e.target.value; save(); });
+$('#gameDate').addEventListener('change', e => { if (!e.target.value) { e.target.value = S.date; return; } S.date = e.target.value; S.quick = null; relink(); save(); renderAll(); });
 
 function renderAttend() {
   $('#gameDate').value = S.date;
@@ -769,28 +855,49 @@ function openGuestDialog(g) {
 }
 
 // ===== 팀 나누기 =====
+const fmtTime = at => { const d = new Date(at); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function teamsLeft() { if (canEdit()) return Infinity; const r = roundOf(); return MAX_TRIES - (r ? r.plans.length : 0); }
 async function doSplit() {
+  if (teamsLeft() <= 0) { toast(`팀 나누기는 ${MAX_TRIES}번까지만 할 수 있어요. 아래 기록 중에서 한 가지를 선택해 주세요`); return false; }
   $('#splitBtn').disabled = true;
   try { await loadMembers(); } catch { /* 연결이 안 되면 마지막으로 불러온 정보 사용 */ }
-  const a = attendees();
   $('#splitBtn').disabled = false;
+  if (teamsLeft() <= 0) { renderTeams(); return false; }
+  const a = attendees();
   if (!a.length) { toast('참석 탭에서 참석자를 먼저 넣어주세요'); showTab('attend'); return false; }
-  S.teams = {};
-  GORDER.forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) S.teams[g] = splitTeams(ps); });
-  S.sets = null; S.quick = null; save();
+  const teams = {};
+  GORDER.forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) teams[g] = splitTeams(ps); });
+  const r = R(), plan = { id: uid('T'), no: (r.seq = (r.seq || 0) + 1), at: Date.now(), by: me.name, teams, setPlans: [], setSel: null, setSeq: 0 };
+  r.plans.push(plan); r.sel = plan.id; trimMaster(r.plans, r.sel);
+  S.quick = null; relink(); save();
   renderTeams(); renderSaved();
   return true;
 }
 $('#splitBtn').addEventListener('click', doSplit);
-// 팀 초기화: 팀 편성과 거기서 나온 세트 배치·즉석 배정 기록을 지운다 (참석 명단은 유지)
+function selectTeamPlan(id) {
+  const r = roundOf(); if (!r || r.sel === id) return;
+  r.sel = id; S.quick = null; relink(); save(); renderAll();
+  toast(`${r.plans.find(p => p.id === id).no}안을 선택했어요`);
+}
+// 팀 초기화(정서준만): 이 회차의 팀 안 기록과 거기서 나온 세트 안·즉석 배정 기록을 모두 지운다 (참석 명단은 유지)
 $('#teamReset').addEventListener('click', () => {
-  if (!confirm('팀 편성과 세트 배치, 즉석 배정 기록을 모두 지울까요?\n참석 명단은 그대로 남아요.')) return;
-  S.teams = null; S.sets = null; S.quick = null; save();
+  if (!canEdit()) return;
+  if (!confirm('이 회차의 팀 안 기록과 세트 배치, 즉석 배정 기록을 모두 지울까요?\n참석 명단은 그대로 남아요.')) return;
+  const r = roundOf(); if (r) { r.plans = []; r.sel = null; }
+  S.quick = null; relink(); save();
   renderTeams(); renderSaved(); toast('팀을 초기화했어요');
 });
 function renderTeams() {
   const box = $('#teamBox'); box.innerHTML = '';
-  $('#teamReset').classList.toggle('hidden', !S.teams);
+  const r = roundOf(), used = r ? r.plans.length : 0, left = teamsLeft();
+  $('#teamReset').classList.toggle('hidden', !(canEdit() && S.teams));
+  $('#teamHint').textContent = canEdit()
+    ? '이름을 누르면 상대 팀으로 옮겨요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.'
+    : `팀은 최대 ${MAX_TRIES}번까지 짤 수 있고 짠 안은 모두 기록돼요. 가장 좋은 안 한 가지를 선택하세요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.`;
+  const btn = $('#splitBtn');
+  btn.textContent = !used ? '팀 나누기' : (left === Infinity ? '다시 나누기' : `다시 나누기 (${Math.max(left, 0)}번 남음)`);
+  btn.disabled = left <= 0;
+  renderTeamHistory();
   if (!S.teams) { box.append(el('p', { class: 'mute' }, '아직 나눈 팀이 없어요. 참석자를 확인한 뒤 팀 나누기를 누르세요.')); $('#teamImgBox').classList.add('hidden'); return; }
   const inTeam = new Set(Object.values(S.teams).flatMap(t => [...t.V, ...t.Q]).map(p => p.key));
   const loose = attendees().filter(p => !inTeam.has(p.key));
@@ -798,14 +905,18 @@ function renderTeams() {
     el('p', { style: 'margin-bottom:4px;font-weight:700' }, '팀이 없는 참석자'),
     el('p', { class: 'mute', style: 'margin-bottom:8px' }, '누르면 인원이 적은 팀으로 들어가요.'),
     el('div', { class: 'chips' }, ...loose.map(p => el('button', { class: 'chip' + (p.guest ? ' guest' : ''), on: { click: () => addLoose(p) } }, `${p.name} ${p.gender}`)))));
+  if (r && r.sel) { const pl = selPlan(); if (pl) box.append(el('p', { class: 'hint', style: 'margin:0 0 8px' }, `지금 선택된 안: ${pl.no}안`)); }
   GORDER.forEach(g => {
     const t = S.teams[g]; if (!t || !(t.V.length + t.Q.length)) return;
     box.append(el('h2', { style: 'font-size:17px;margin:4px 0 8px' }, g === '남' ? '남자부' : '여자부'));
     box.append(el('div', { class: 'teams' }, ...['V', 'Q'].map(side => el('div', { class: 'team ' + side },
       el('h3', {}, side + '팀', el('span', { class: 'count' }, t[side].length + '명')),
-      el('ul', {}, ...membersFirst(t[side].map(freshen)).map(p => { return el('li', { class: 'pl' }, el('button', { on: { click: () => movePlayer(g, side, p.key) } },
-        el('span', {}, p.name + (p.guest ? ' (G)' : '')), el('span', { class: 'pf' }, prefText(p.prefs))),
-        el('button', { class: 'rm', 'aria-label': p.name + ' 빼기', title: '팀에서 빼기', on: { click: () => removePlayer(g, side, p.key) } }, '×')); }))
+      el('ul', {}, ...membersFirst(t[side].map(freshen)).map(p => {
+        const inner = [el('span', {}, p.name + (p.guest ? ' (G)' : '')), el('span', { class: 'pf' }, prefText(p.prefs))];
+        return el('li', { class: 'pl' },
+          canEdit() ? el('button', { on: { click: () => movePlayer(g, side, p.key) } }, ...inner) : el('div', { class: 'nm' }, ...inner),
+          el('button', { class: 'rm', 'aria-label': p.name + ' 빼기', title: '팀에서 빼기', on: { click: () => removePlayer(g, side, p.key) } }, '×'));
+      }))
     ))));
   });
   const gs = presentGenders();
@@ -813,6 +924,26 @@ function renderTeams() {
     ...(gs.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawTeam(gs), fname: '팀편성' }] : []),
     ...gs.map(g => ({ id: g, label: gName(g), draw: () => drawTeam([g]), fname: '팀편성_' + gName(g) }))
   ]);
+}
+// 짠 팀 안 기록: 안마다 명단을 보여주고 한 가지를 선택
+function planLines(pl) {
+  const out = [];
+  GORDER.forEach(g => { const t = pl.teams[g]; if (!t || !(t.V.length + t.Q.length)) return;
+    ['V', 'Q'].forEach(side => out.push(el('div', { class: 'tl' }, el('b', {}, `${g === '여' ? '여자' : '남자'} ${side}팀`), membersFirst(t[side]).map(p => p.name + (p.guest ? '(G)' : '')).join(', ')))); });
+  return out;
+}
+function renderTeamHistory() {
+  const box = $('#teamHistory'); box.innerHTML = '';
+  const r = roundOf(); if (!r || !r.plans.length) return;
+  box.append(el('h2', { style: 'font-size:17px;margin:8px 0 0' }, '짠 기록'),
+    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 회차에 짠 안 ${r.plans.length}개가 기록돼 있어요.` : `${r.plans.length}번 짰어요 (최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
+  r.plans.forEach(pl => {
+    const on = pl.id === r.sel;
+    box.append(el('div', { class: 'rec' + (on ? ' sel' : '') },
+      el('div', { class: 'rh' }, el('div', {}, el('span', { class: 'rn' }, pl.no + '안'), ' ', el('span', { class: 'rmeta' }, `${fmtTime(pl.at)} · ${pl.by}`)),
+        on ? el('span', { class: 'selbadge' }, '✓ 선택됨') : el('button', { class: 'btn sm', on: { click: () => selectTeamPlan(pl.id) } }, '이 안으로 선택')),
+      ...planLines(pl)));
+  });
 }
 function presentGenders() { return GORDER.filter(g => S.teams && S.teams[g] && S.teams[g].V.length + S.teams[g].Q.length); }
 
@@ -843,24 +974,29 @@ function resultBlock(box, key, views, extra = []) {
   extra.forEach(g => box.append(Array.isArray(g) ? el('div', { class: 'row', style: 'margin-top:8px' }, ...g) : g));
   draw();
 }
-// 팀 구성이 바뀌면 미리 짠 세트 배치는 무효. 즉석 배정 기록은 사람 기준이라 유지
+// 팀 구성이 바뀌면 그 팀 안으로 짠 세트 안(기록)은 무효가 된다. 즉석 배정 기록은 사람 기준이라 유지
+function invalidateSets(plan = selPlan()) { if (plan) { plan.setPlans = []; plan.setSel = null; } relink(); }
 function movePlayer(g, from, key) {
+  if (!canEdit()) return;                    // 팀원을 눌러 옮기는 건 정서준만
   const to = from === 'V' ? 'Q' : 'V', t = S.teams[g];
   const p = t[from].find(x => x.key === key);
   t[from] = t[from].filter(x => x.key !== key); t[to].push(p);
-  S.sets = null; save(); renderTeams(); renderSaved();
+  invalidateSets(); save(); renderTeams(); renderSaved();
 }
 function removePlayer(g, side, key) {
   if (!confirm('팀과 참석 명단에서 뺄까요?')) return;
-  S.teams[g][side] = S.teams[g][side].filter(x => x.key !== key);
+  const r = roundOf();    // 이 회차에 기록된 모든 안에서 뺀다
+  (r ? r.plans : []).forEach(pl => Object.values(pl.teams).forEach(t => ['V', 'Q'].forEach(sd => {
+    const n = t[sd].length; t[sd] = t[sd].filter(x => x.key !== key); if (t[sd].length !== n) invalidateSets(pl);
+  })));
   S.attend = S.attend.filter(k => k !== key);
   S.guests = S.guests.filter(x => x.key !== key);
-  S.sets = null; save(); renderTeams(); renderAttend(); renderSaved();
+  relink(); save(); renderTeams(); renderAttend(); renderSaved();
 }
 function addLoose(p) {
   if (!S.teams[p.gender]) S.teams[p.gender] = { V: [], Q: [] };
   const t = S.teams[p.gender], side = t.V.length < t.Q.length ? 'V' : t.Q.length < t.V.length ? 'Q' : (Math.random() < .5 ? 'V' : 'Q');
-  t[side].push(p); S.sets = null; save(); renderTeams(); renderSaved();
+  t[side].push(p); invalidateSets(); save(); renderTeams(); renderSaved();
   toast(`${p.name} → ${gName(p.gender)} ${side}팀`);
 }
 // 팀 명단: 정회원이 위, 게스트((G))는 맨 아래 (각 그룹 안의 순서는 유지)
@@ -877,19 +1013,28 @@ async function ensureTeams() {
 }
 
 // ===== 세트 배치 =====
-$('#setsBtn').addEventListener('click', async () => {
+function setsLeft() { if (canEdit()) return Infinity; const p = selPlan(); return MAX_TRIES - (p ? p.setPlans.length : 0); }
+const newRow = (t, n) => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) });
+// 새 세트 안을 만든다. g(·side)를 주면 그 성별(·팀)만 새로 짜고, 나머지는 지금 선택한 안 그대로 가져온다
+async function genSetPlan(g, side) {
   if (!(await ensureTeams())) return;
-  const n = +$('#setCount').value;
-  S.sets = teamList().map(t => ({ label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) }));
-  save(); renderSaved();
-});
-// 일부만 다시 배치: 성별 전체(side 생략) 또는 한 팀만. 나머지 결과는 그대로 둔다
-function regenSets(g, side) {
-  if (!S.sets || !S.teams) return;
-  const n = +$('#setCount').value, old = Object.fromEntries(S.sets.map(r => [r.label, r]));
-  S.sets = teamList().map(t => ((t.g === g && (!side || t.side === side)) || !old[t.label])
-    ? { label: t.label, side: t.side, g: t.g, sets: setsAssign(t.players, n) } : old[t.label]);
-  save(); renderSaved(); toast(`${gName(g)}${side ? ' ' + side + '팀' : ''}만 다시 배치했어요`);
+  const plan = selPlan(); if (!plan) return;
+  if (setsLeft() <= 0) { toast(`세트 배치는 ${MAX_TRIES}번까지만 할 수 있어요. 아래 기록 중에서 한 가지를 선택해 주세요`); return; }
+  const n = +$('#setCount').value, base = selSetPlan();
+  const old = base ? Object.fromEntries(base.rows.map(r => [r.label, r])) : {};
+  const rows = teamList().map(t => (g && base && old[t.label] && !(t.g === g && (!side || t.side === side)))
+    ? JSON.parse(JSON.stringify(old[t.label])) : newRow(t, n));
+  const note = g && base ? `${gName(g)}${side ? ' ' + side + '팀' : ''}만 다시 배치` : '';
+  const sp = { id: uid('S'), no: (plan.setSeq = (plan.setSeq || 0) + 1), at: Date.now(), by: me.name, note, edited: false, rows };
+  plan.setPlans.push(sp); plan.setSel = sp.id; trimMaster(plan.setPlans, sp.id);
+  relink(); save(); renderSaved();
+  if (note) toast(note + '했어요');
+}
+$('#setsBtn').addEventListener('click', () => genSetPlan());
+const regenSets = (g, side) => genSetPlan(g, side);
+function selectSetPlan(id) {
+  const p = selPlan(); if (!p || p.setSel === id) return;
+  p.setSel = id; relink(); save(); renderSaved(); toast(`${p.setPlans.find(x => x.id === id).no}안을 선택했어요`);
 }
 // ===== 즉석 (당일 세트마다, 성별 따로) =====
 // S.quick = { 여: { V: [세트...], Q: [세트...] }, 남: {...} }, 세트 = {court, bench, mode}
@@ -937,23 +1082,23 @@ function renderQuick() {
       el('button', { class: 'btn ghost sm', on: { click: () => openEditor({ title: `${gName(g).slice(0, 2)} ${side}팀 · 즉석 배정`, start: n - 1, getSets: () => S.quick[g][side] }) } }, `${g === '여' ? '여자' : '남자'} ${side}팀 직접 수정`))]]);
   });
 }
-// 다시 배치 버튼들: 성별마다 한 줄 [부 전체 / V팀 / Q팀], 마지막 줄에 전체
+// 다시 배치 버튼들: 성별마다 한 줄 [부 전체 / V팀 / Q팀]. 누를 때마다 새 안이 기록되고 자동으로 선택된다
 function regenButtons(sg) {
   if (!sg.length) return [];
+  const left = setsLeft(), off = left <= 0;
   const live = (g, side) => S.sets.some(r => r.g === g && r.side === side && r.sets.some(st => st.court.some(Boolean)));
-  const rows = [el('p', { class: 'hint', style: 'margin:4px 0 -2px' }, '다시 배치')];
+  const rows = [el('p', { class: 'hint', style: 'margin:4px 0 -2px' }, '다시 배치' + (left === Infinity ? '' : ` (남은 횟수 ${Math.max(left, 0)}번)`))];
   sg.forEach(g => {
     const b = [];
-    if (sg.length > 1) b.push(el('button', { class: 'btn ghost sm', on: { click: () => regenSets(g) } }, gName(g) + ' 전체'));
+    if (sg.length > 1) b.push(el('button', { class: 'btn ghost sm', disabled: off, on: { click: () => regenSets(g) } }, gName(g) + ' 전체'));
     ['V', 'Q'].filter(side => live(g, side)).forEach(side =>
-      b.push(el('button', { class: 'btn ghost sm', on: { click: () => regenSets(g, side) } }, `${g === '여' ? '여자' : '남자'} ${side}팀`)));
+      b.push(el('button', { class: 'btn ghost sm', disabled: off, on: { click: () => regenSets(g, side) } }, `${g === '여' ? '여자' : '남자'} ${side}팀`)));
     rows.push(b);
   });
-  rows.push([el('button', { class: 'btn ghost sm', on: { click: () => $('#setsBtn').click() } }, sg.length > 1 ? '전체 다시 배치' : '모두 다시 배치')]);
+  if (off) rows.push(el('p', { class: 'hint', style: 'color:var(--err)' }, `${MAX_TRIES}번을 모두 사용했어요. 아래 기록 중에서 한 가지를 선택해 주세요.`));
   return rows;
 }
-// 직접 수정 버튼: 팀마다 한 개 (세트 배치)
-const canEdit = () => !!(me && me.is_admin && me.can_edit);   // 직접 수정은 허용된 관리자만
+// 직접 수정 버튼: 정서준만, 팀마다 한 개 (세트 배치)
 function editButtons(sg) {
   if (!sg.length || !canEdit()) return [];
   const rows = [el('p', { class: 'hint', style: 'margin:8px 0 -2px' }, '직접 수정 (끌어서 자리 바꾸기)')];
@@ -962,7 +1107,8 @@ function editButtons(sg) {
     ['V', 'Q'].forEach(side => {
       const row = S.sets.find(r => r.g === g && r.side === side && r.sets.some(st => st.court.some(Boolean)));
       if (!row) return;
-      b.push(el('button', { class: 'btn ghost sm', on: { click: () => openEditor({ title: row.label, start: 0, getSets: () => S.sets.find(r => r.label === row.label).sets }) } }, `${row.label} 수정`));
+      b.push(el('button', { class: 'btn ghost sm', on: { click: () => openEditor({ title: row.label, start: 0,
+        getSets: () => S.sets.find(r => r.label === row.label).sets, onEdit: () => { const sp = selSetPlan(); if (sp) sp.edited = true; } }) } }, `${row.label} 수정`));
     });
     if (b.length) rows.push(b);
   });
@@ -970,19 +1116,129 @@ function editButtons(sg) {
 }
 function renderSaved() {
   const sg = S.sets ? GORDER.filter(g => S.sets.some(r => r.g === g && r.sets.length && r.sets.some(st => st.court.some(Boolean)))) : [];
+  const left = setsLeft(), plan = selPlan();
+  $('#setsBtn').textContent = selSetPlan() ? '전체 다시 배치' : '세트 배치';
+  $('#setsBtn').disabled = left <= 0;
+  const tr = $('#setsTries');
+  tr.classList.toggle('hidden', canEdit());
+  tr.textContent = `세트 배치는 같은 팀 안에서 최대 ${MAX_TRIES}번까지 짤 수 있어요.` + (plan ? ` (남은 횟수 ${Math.max(left, 0)}번)` : '');
   resultBlock($('#setsImgBox'), 'sets', [
     ...(sg.length > 1 ? [{ id: 'all', label: '전체', draw: () => drawSets(sg), fname: '세트배치' }] : []),
     ...sg.map(g => ({ id: g, label: gName(g), draw: () => drawSets([g]), fname: '세트배치_' + gName(g) }))
   ], [...regenButtons(sg), ...editButtons(sg)]);
+  renderPublish(); renderSetHistory();
   renderQuick();
 }
+
+// 짠 세트 안 기록: 안마다 작은 그림을 보여주고 한 가지를 선택 (누르면 크게 볼 수 있음)
+const imgCache = new Map();
+function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+function rowsImage(rows, scale) {
+  const key = scale + ':' + hashStr(JSON.stringify(rows));
+  if (imgCache.has(key)) return imgCache.get(key);
+  const old = RENDER_SCALE; RENDER_SCALE = scale;
+  let url = '';
+  try { const c = drawSetRows(rows, GORDER); url = scale === 1 ? c.toDataURL('image/jpeg', 0.72) : c.toDataURL('image/png'); } finally { RENDER_SCALE = old; }
+  if (imgCache.size > 40) imgCache.clear();
+  imgCache.set(key, url); return url;
+}
+function renderSetHistory() {
+  const box = $('#setsHistory'); box.innerHTML = '';
+  const plan = selPlan(); if (!plan || !plan.setPlans.length) return;
+  box.append(el('h2', { style: 'font-size:17px;margin:8px 0 0' }, '짠 기록'),
+    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 팀 안으로 짠 세트 안 ${plan.setPlans.length}개가 기록돼 있어요.` : `${plan.setPlans.length}번 짰어요 (최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
+  plan.setPlans.forEach(sp => {
+    const on = sp.id === plan.setSel, rows = sp.rows.filter(r => r.sets.length);
+    const img = el('img', { alt: sp.no + '안', src: rowsImage(rows, 1) });
+    img.addEventListener('click', () => openViewer(rowsImage(rows, 2)));
+    box.append(el('div', { class: 'rec' + (on ? ' sel' : '') },
+      el('div', { class: 'rh' }, el('div', {}, el('span', { class: 'rn' }, sp.no + '안'), ' ',
+        el('span', { class: 'rmeta' }, `${fmtTime(sp.at)} · ${sp.by}${sp.note ? ' · ' + sp.note : ''}${sp.edited ? ' · 수정됨' : ''}`)),
+        on ? el('span', { class: 'selbadge' }, '✓ 선택됨') : el('button', { class: 'btn sm', on: { click: () => selectSetPlan(sp.id) } }, '이 안으로 선택')),
+      img));
+  });
+}
+
+// ===== 회원들에게 배포 =====
+let PUB = null;   // 서버에 배포된 상태 {active, date, label, sig, by, at}
+async function loadPubInfo() {
+  if (!me || !me.is_admin) return;
+  try { PUB = await rpc('vq_admin_publish_info', { p_code: code }); } catch { /* 연결 실패는 무시 */ }
+  renderPublish();
+}
+// 선택한 세트 안 → 회원별 배정표 { 회원id: { team, sets: ['센터(속공)', '교체 대기', ...] } } (게스트는 로그인이 없어 제외)
+function buildAssign(sp) {
+  const a = {};
+  sp.rows.forEach(row => {
+    const n = row.sets.length, put = (p, k, v) => {
+      if (!p || !String(p.key).startsWith('m')) return;
+      const id = String(p.key).slice(1);
+      (a[id] = a[id] || { team: row.label, sets: Array(n).fill('-') }).sets[k] = v;
+    };
+    row.sets.forEach((st, k) => { st.court.forEach((p, i) => put(p, k, POS[i])); st.bench.forEach(p => put(p, k, '교체 대기')); });
+  });
+  return a;
+}
+function renderPublish() {
+  const box = $('#setsPublish'); if (!box) return; box.innerHTML = '';
+  const sp = selSetPlan(); if (!sp) return;
+  const assign = buildAssign(sp), sig = hashStr(JSON.stringify(assign)), n = Object.keys(assign).length;
+  const same = PUB && PUB.active && PUB.sig === sig && PUB.date === S.date;
+  const card = el('div', { class: 'card pubcard', style: 'display:flex;flex-direction:column;gap:8px' },
+    el('strong', {}, '회원들에게 배포'),
+    el('p', { class: 'mute' }, `선택된 ${sp.no}안을 배포하면, 회원들이 앱에 들어와서 '이번 주 나의 세트별 포지션'을 자기 것만 볼 수 있어요. (회원 ${n}명)`));
+  if (PUB && PUB.active) card.append(el('p', { class: same ? 'ok' : 'warn' }, same
+    ? `✓ 지금 선택한 안이 배포되어 있어요 · ${PUB.by} · ${fmtTime(PUB.at)}`
+    : `⚠ 배포된 내용(${PUB.label}, ${PUB.date})과 지금 선택한 안이 달라요. 다시 배포해야 반영돼요`));
+  else card.append(el('p', { class: 'mute' }, '아직 배포하지 않았어요.'));
+  card.append(el('div', { class: 'row' },
+    el('button', { class: 'btn', on: { click: () => doPublish(sp, assign, sig) } }, PUB && PUB.active ? '다시 배포' : '회원들에게 배포'),
+    PUB && PUB.active ? el('button', { class: 'btn ghost', on: { click: doUnpublish } }, '배포 취소') : null));
+  box.append(card);
+}
+async function doPublish(sp, assign, sig) {
+  if (!confirm(`${sp.no}안을 회원들에게 배포할까요?\n회원들은 자기 포지션만 볼 수 있어요.`)) return;
+  try {
+    await rpc('vq_admin_publish', { p_code: code, p_date: S.date, p_label: sp.no + '안', p_sig: sig, p_assign: assign });
+    toast('회원들에게 배포했어요'); await loadPubInfo();
+  } catch (e) { toast(e.message); }
+}
+async function doUnpublish() {
+  if (!confirm('배포를 취소할까요? 회원들 화면에서 배정표가 사라져요.')) return;
+  try { await rpc('vq_admin_unpublish', { p_code: code }); toast('배포를 취소했어요'); await loadPubInfo(); } catch (e) { toast(e.message); }
+}
+
+// ===== 회원: 이번 주 나의 세트별 포지션 =====
+let MINE = null;
+const fmtDay = d => { const t = new Date(d + 'T00:00'); return isNaN(t) ? d : `${t.getMonth() + 1}월 ${t.getDate()}일 (${'일월화수목금토'[t.getDay()]})`; };
+async function loadMine() {
+  if (!me) return;
+  try { MINE = await rpc('vq_my_assignment', { p_code: code }); } catch { return; }
+  renderAssign();
+}
+function renderAssign() {
+  const box = $('#myAssign'); if (!box) return; box.innerHTML = '';
+  const r = MINE;
+  if (!r || !r.published || !r.date || r.date < todayStr()) { box.classList.add('hidden'); return; }   // 지난 회차는 숨김
+  box.classList.remove('hidden');
+  box.append(el('h2', {}, '이번 주 나의 세트별 포지션'));
+  if (!r.mine) { box.append(el('p', { class: 'asub' }, fmtDay(r.date)), el('p', { class: 'mute', style: 'margin-top:10px' }, '이번 배정표에 이름이 없어요. 참석 명단에 들어가 있는지 관리자에게 확인해 보세요.')); return; }
+  box.append(el('p', { class: 'asub' }, `${fmtDay(r.date)} · ${r.mine.team}`));
+  box.append(el('div', { class: 'al' }, ...r.mine.sets.map((pos, k) => {
+    const bench = pos === '교체 대기', hope = !bench && (me.prefs || []).includes(pos);
+    return el('div', { class: 'ar' + (bench ? ' bench' : '') }, el('span', { class: 'sn' }, `${k + 1}세트`), el('span', { class: 'ps' }, pos), hope ? el('span', { class: 'hope' }, '희망') : null);
+  })));
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { loadMine(); loadPubInfo(); } });
+setInterval(() => { if (document.visibilityState === 'visible') loadMine(); }, 60000);
 
 // ===== 이미지 그리기 (Canvas) =====
 const C = { v: '#1d3f9a', vSoft: '#e3e9f8', q: '#f2b705', qSoft: '#fdf3cf', qInk: '#5a4300', ink: '#16181d', mute: '#646b78', line: '#d9dde4', bg: '#ffffff' };
 const FONT = '"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
 const canvases = {};
 function fmtDate(d) { const t = new Date(d + 'T00:00'); return isNaN(t) ? d : `${t.getFullYear()}. ${t.getMonth() + 1}. ${t.getDate()}. (${'일월화수목금토'[t.getDay()]})`; }
-function newCanvas(w, h) { const c = document.createElement('canvas'); const s = 2; c.width = w * s; c.height = h * s; const x = c.getContext('2d'); x.scale(s, s); x.fillStyle = C.bg; x.fillRect(0, 0, w, h); x.textBaseline = 'middle'; return [c, x]; }
+let RENDER_SCALE = 2;
+function newCanvas(w, h) { const c = document.createElement('canvas'); const s = RENDER_SCALE; c.width = w * s; c.height = h * s; const x = c.getContext('2d'); x.scale(s, s); x.fillStyle = C.bg; x.fillRect(0, 0, w, h); x.textBaseline = 'middle'; return [c, x]; }
 function txt(x, s, X, Y, { size = 16, w = 500, color = C.ink, align = 'left', max } = {}) {
   x.font = `${w} ${size}px ${FONT}`; x.fillStyle = color; x.textAlign = align;
   if (max) { while (x.measureText(s).width > max && size > 9) { size--; x.font = `${w} ${size}px ${FONT}`; } }
@@ -1032,8 +1288,9 @@ function drawCourt(x, X, Y, w, st, { cellH = 56, nameSize = 16 } = {}) {
     const p = st.court[k];
     rr(x, cx, cy, gw, cellH - 4, 8, p ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.05)');
     txt(x, pos, cx + gw / 2, cy + cellH * 0.27, { size: Math.round(cellH * 0.2), w: 600, color: '#c9d4f2', align: 'center', max: gw - 6 });
+    const hit = p && (p.prefs || []).includes(pos);          // 희망한 포지션에 배정되면 노란색
     txt(x, p ? p.name + (p.guest ? '(G)' : '') : '빈자리', cx + gw / 2, cy + cellH * 0.64,
-      { size: p ? nameSize : nameSize - 3, w: p ? 750 : 500, color: !p ? '#8ea0d8' : '#fff', align: 'center', max: gw - 8 });
+      { size: p ? nameSize : nameSize - 3, w: p ? 750 : 500, color: !p ? '#8ea0d8' : hit ? '#ffd84d' : '#fff', align: 'center', max: gw - 8 });
   });
   return h;
 }
@@ -1064,13 +1321,15 @@ function drawSetGrid(title, rows) {
     });
     y += rowH(r);
   });
+  txt(x, '노란 이름은 본인이 희망한 포지션', W - 24, H - 18, { size: 13, color: C.mute, align: 'right' });
   return c;
 }
 
-function drawSets(gs) {
-  const rows = GORDER.filter(g => gs.includes(g)).flatMap(g => S.sets.filter(r => r.g === g && r.sets.length));
+function drawSetRows(allRows, gs) {
+  const rows = GORDER.filter(g => gs.includes(g)).flatMap(g => allRows.filter(r => r.g === g && r.sets.length));
   return drawSetGrid((gs.length === 1 ? gName(gs[0]) + ' ' : '') + '세트별 포지션', rows);
 }
+const drawSets = gs => drawSetRows(S.sets, gs);
 function quickRows(g) {
   const q = (S.quick && S.quick[g]) || {};
   return teamList().filter(t => t.g === g && t.players.length && q[t.side]).map(t => ({ label: t.label, side: t.side, g, sets: q[t.side] }));
@@ -1085,7 +1344,9 @@ function drawQuick(gOnly) {
   const benchRow = g => rows.some(r => r.g === g && r.sets[n - 1] && r.sets[n - 1].bench.length) ? 30 : 0;
   const H = 86 + genders.reduce((a, g) => a + 44 + courtH + benchRow(g) + 24, 0) + 24;
   const cur = rows.find(r => r.sets[n - 1]);
+  const note = '노란 이름은 본인이 희망한 포지션' + (cur && cur.sets[n - 1].mode === 'rand' ? ' (희망 무시 모드)' : '');
   const [c, x] = newCanvas(W, H); header(x, W, `${gName(gOnly)} ${n}세트 포지션`);
+  txt(x, note, W - 24, H - 16, { size: 13, color: C.mute, align: 'right' });
   let y = 86;
   genders.forEach(g => {
     rows.filter(r => r.g === g).forEach((r, i) => {
@@ -1172,6 +1433,7 @@ function doMove(a, b) {
     st.court[c.idx] = pbn;
     if (pc) st.bench[bn.idx] = pc; else st.bench.splice(bn.idx, 1);
   }
+  if (E.cfg.onEdit) E.cfg.onEdit();
   E.sel = null; save(); renderEditor();
 }
 function editTap(kind, idx) {
