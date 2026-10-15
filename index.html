@@ -145,6 +145,11 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 #editor .cell.dragging,#editor .echip.dragging{opacity:.35}
 #editor .echip{font-size:16px;padding:8px 14px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .dragghost{position:fixed;z-index:90;pointer-events:none;background:var(--q);color:var(--q-ink);padding:8px 16px;border-radius:10px;font-weight:800;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.35);transform:translate(-50%,-135%)}
+.optbtn{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px}
+.optbtn b{display:block;font-size:16px}
+.optbtn span{display:block;font-size:13px;color:var(--mute);margin-top:2px;line-height:1.45}
+.optbtn.danger{border-color:#e7b4ad;background:#fdf0ee}
+.optbtn.danger b{color:var(--err)}
 .ctl-tag{display:inline-block;min-width:64px;text-align:center;font-weight:700;font-size:13px;padding:4px 10px;border-radius:999px}
 .ctl-tag.V{background:var(--v-soft);color:var(--v)} .ctl-tag.Q{background:var(--q-soft);color:var(--q-ink)}
 .team li .nm{width:100%;text-align:left;background:#fff;border-radius:8px;padding:6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:6px;min-width:0}
@@ -255,6 +260,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         <div><h2>V팀 · Q팀 나누기</h2><p class="mute" id="teamHint"></p></div>
         <div class="row"><button class="btn ghost hidden" id="teamReset">팀 초기화</button><button class="btn" id="splitBtn">팀 나누기</button></div>
       </div>
+      <div id="teamRegen"></div>
       <div id="teamBox"></div>
       <div class="result hidden" id="teamImgBox"></div>
       <div id="teamHistory" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -302,6 +308,13 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
 </div>
 
 <!-- 포지션 편집 -->
+<dialog id="resetDlg"><div class="in">
+  <h2>팀 초기화</h2>
+  <p class="mute">참석 명단은 그대로 남아요. 어떻게 초기화할까요?</p>
+  <button type="button" class="optbtn" id="resetKeep"><b>팀만 초기화</b><span>지금 선택된 팀을 해제해요. 짠 기록은 남아 있고, 다음에 짜는 안은 번호가 이어져요.</span></button>
+  <button type="button" class="optbtn danger" id="resetAll"><b>기록도 초기화 (1안부터)</b><span>짠 팀 안, 세트 배치, 즉석 배정 기록을 모두 지우고 번호도 1안부터 다시 시작해요. 되돌릴 수 없어요.</span></button>
+  <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" data-close>취소</button></div>
+</div></dialog>
 <dialog id="prefDlg"><div class="in">
   <h2 id="prefDlgTitle"></h2>
   <div class="court sm" id="dlgCourt"></div>
@@ -856,47 +869,74 @@ function openGuestDialog(g) {
 
 // ===== 팀 나누기 =====
 const fmtTime = at => { const d = new Date(at); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-function teamsLeft() { if (canEdit()) return Infinity; const r = roundOf(); return MAX_TRIES - (r ? r.plans.length : 0); }
-async function doSplit() {
-  if (teamsLeft() <= 0) { toast(`팀 나누기는 ${MAX_TRIES}번까지만 할 수 있어요. 아래 기록 중에서 한 가지를 선택해 주세요`); return false; }
+// 팀 나누기 횟수도 세트 배치처럼 여자부 5번, 남자부 5번 따로 센다 (전체 다시 나누기는 두 부가 1번씩, 한 부만 다시 나누면 그 부만 1번)
+const usedTeams = (r, g) => r ? r.plans.filter(pl => (pl.gens || GORDER).includes(g)).length : 0;
+const teamsLeftOf = g => canEdit() ? Infinity : MAX_TRIES - usedTeams(roundOf(), g);
+const attendGens = () => GORDER.filter(g => attendees().some(p => p.gender === g));
+const teamLeftText = gs => gs.map(g => `${gName(g)} ${Math.max(teamsLeftOf(g), 0)}번`).join(' · ');
+// g를 주면 그 성별만 새로 나누고 다른 성별은 지금 선택한 안 그대로 가져온다. 새 안으로 기록되고 자동 선택된다
+async function doSplit(g) {
+  if (typeof g !== 'string') g = undefined;   // 버튼 클릭 이벤트가 넘어온 경우
+  const outNow = () => (g ? [g] : attendGens()).filter(x => teamsLeftOf(x) <= 0);
+  const outMsg = out => g ? `${gName(g)} 팀 나누기는 ${MAX_TRIES}번을 모두 사용했어요. 아래 기록 중에서 선택해 주세요`
+    : `${out.map(gName).join('·')}의 남은 횟수가 없어서 전체 다시 나누기는 할 수 없어요. 남은 쪽만 다시 나누거나 기록 중에서 선택해 주세요`;
+  let out = outNow(); if (out.length) { toast(outMsg(out)); return false; }
   $('#splitBtn').disabled = true;
   try { await loadMembers(); } catch { /* 연결이 안 되면 마지막으로 불러온 정보 사용 */ }
   $('#splitBtn').disabled = false;
-  if (teamsLeft() <= 0) { renderTeams(); return false; }
-  const a = attendees();
+  out = outNow(); if (out.length) { renderTeams(); return false; }
+  const a = attendees(), base = selPlan();
   if (!a.length) { toast('참석 탭에서 참석자를 먼저 넣어주세요'); showTab('attend'); return false; }
+  if (g && !base) g = undefined;
+  if (g && !a.some(p => p.gender === g)) { toast(`${gName(g)} 참석자가 없어요`); return false; }
   const teams = {};
-  GORDER.forEach(g => { const ps = a.filter(p => p.gender === g); if (ps.length) teams[g] = splitTeams(ps); });
-  const r = R(), plan = { id: uid('T'), no: (r.seq = (r.seq || 0) + 1), at: Date.now(), by: me.name, teams, setPlans: [], setSel: null, setSeq: 0 };
+  GORDER.forEach(x => {
+    if (g && x !== g) { if (base && base.teams[x]) teams[x] = JSON.parse(JSON.stringify(base.teams[x])); return; }
+    const ps = a.filter(p => p.gender === x); if (ps.length) teams[x] = splitTeams(ps);
+  });
+  const r = R(), gens = g ? [g] : attendGens();
+  const plan = { id: uid('T'), no: (r.seq = (r.seq || 0) + 1), at: Date.now(), by: me.name, note: g ? `${gName(g)}만 다시 나눔` : '', gens, teams, setPlans: [], setSel: null, setSeq: 0 };
   r.plans.push(plan); r.sel = plan.id; trimMaster(r.plans, r.sel);
   S.quick = null; relink(); save();
   renderTeams(); renderSaved();
+  if (plan.note) toast(plan.note + '했어요');
   return true;
 }
-$('#splitBtn').addEventListener('click', doSplit);
+$('#splitBtn').addEventListener('click', () => doSplit());
 function selectTeamPlan(id) {
   const r = roundOf(); if (!r || r.sel === id) return;
   r.sel = id; S.quick = null; relink(); save(); renderAll();
   toast(`${r.plans.find(p => p.id === id).no}안을 선택했어요`);
 }
-// 팀 초기화(정서준만): 이 회차의 팀 안 기록과 거기서 나온 세트 안·즉석 배정 기록을 모두 지운다 (참석 명단은 유지)
-$('#teamReset').addEventListener('click', () => {
+// 팀 초기화(정서준만): 참석 명단은 항상 그대로 둔다
+//  - 팀만 초기화: 선택한 팀을 해제하고 즉석 배정 기록을 지운다. 짠 안 기록과 번호는 그대로
+//  - 기록도 초기화: 이 회차의 팀 안·세트 안·즉석 배정 기록을 모두 지우고 번호도 1안부터 다시 시작
+$('#teamReset').addEventListener('click', () => { if (canEdit()) $('#resetDlg').showModal(); });
+$('#resetKeep').addEventListener('click', () => {
   if (!canEdit()) return;
-  if (!confirm('이 회차의 팀 안 기록과 세트 배치, 즉석 배정 기록을 모두 지울까요?\n참석 명단은 그대로 남아요.')) return;
-  const r = roundOf(); if (r) { r.plans = []; r.sel = null; }
-  S.quick = null; relink(); save();
-  renderTeams(); renderSaved(); toast('팀을 초기화했어요');
+  const r = roundOf(); if (r) r.sel = null;
+  S.quick = null; relink(); save(); $('#resetDlg').close();
+  renderTeams(); renderSaved(); toast('팀을 초기화했어요. 짠 기록은 남아 있어요');
+});
+$('#resetAll').addEventListener('click', () => {
+  if (!canEdit()) return;
+  if (!confirm('이 회차의 팀 안·세트 배치·즉석 배정 기록을 모두 지우고 1안부터 다시 시작할까요?\n되돌릴 수 없어요. (참석 명단은 그대로 남아요)')) return;
+  delete S.rounds[S.date];            // 안 기록, 선택, 번호표(seq)까지 한꺼번에 삭제
+  S.quick = null; relink(); save(); $('#resetDlg').close();
+  renderTeams(); renderSaved(); toast('기록까지 모두 초기화했어요. 다음엔 1안부터 시작해요');
 });
 function renderTeams() {
   const box = $('#teamBox'); box.innerHTML = '';
-  const r = roundOf(), used = r ? r.plans.length : 0, left = teamsLeft();
-  $('#teamReset').classList.toggle('hidden', !(canEdit() && S.teams));
+  const r = roundOf(), used = r ? r.plans.length : 0, ag = attendGens();
+  $('#teamReset').classList.toggle('hidden', !(canEdit() && (S.teams || used)));
   $('#teamHint').textContent = canEdit()
     ? '이름을 누르면 상대 팀으로 옮겨요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.'
-    : `팀은 최대 ${MAX_TRIES}번까지 짤 수 있고 짠 안은 모두 기록돼요. 가장 좋은 안 한 가지를 선택하세요. 늦게 온 사람은 참석 탭에서 추가하면 여기에 나타나요.`;
+    : `팀은 여자부 ${MAX_TRIES}번, 남자부 ${MAX_TRIES}번까지 짤 수 있고 짠 안은 모두 기록돼요. 전체 다시 나누기는 두 부가 1번씩 줄어요. 가장 좋은 안 한 가지를 선택하세요.`
+      + (used ? ` (남은 횟수: ${teamLeftText(ag)})` : '');
   const btn = $('#splitBtn');
-  btn.textContent = !used ? '팀 나누기' : (left === Infinity ? '다시 나누기' : `다시 나누기 (${Math.max(left, 0)}번 남음)`);
-  btn.disabled = left <= 0;
+  btn.textContent = !used ? '팀 나누기' : '전체 다시 나누기';
+  btn.disabled = used > 0 && ag.some(g => teamsLeftOf(g) <= 0);
+  renderTeamRegen();
   renderTeamHistory();
   if (!S.teams) { box.append(el('p', { class: 'mute' }, '아직 나눈 팀이 없어요. 참석자를 확인한 뒤 팀 나누기를 누르세요.')); $('#teamImgBox').classList.add('hidden'); return; }
   const inTeam = new Set(Object.values(S.teams).flatMap(t => [...t.V, ...t.Q]).map(p => p.key));
@@ -925,6 +965,16 @@ function renderTeams() {
     ...gs.map(g => ({ id: g, label: gName(g), draw: () => drawTeam([g]), fname: '팀편성_' + gName(g) }))
   ]);
 }
+// 한쪽 성별만 다시 나누기 버튼
+function renderTeamRegen() {
+  const box = $('#teamRegen'); box.innerHTML = '';
+  const gs = attendGens();
+  if (!selPlan() || gs.length < 2) return;      // 한쪽 성별만 있으면 '전체'와 같아서 따로 두지 않는다
+  const gl = gs.filter(g => teamsLeftOf(g) <= 0);
+  box.append(el('p', { class: 'hint', style: 'margin:0 0 6px' }, '한쪽만 다시 나누기 (다른 쪽은 지금 팀 그대로)' + (canEdit() ? '' : ` · 남은 횟수: ${teamLeftText(gs)}`)),
+    el('div', { class: 'row' }, ...gs.map(g => el('button', { class: 'btn ghost sm', disabled: teamsLeftOf(g) <= 0, on: { click: () => doSplit(g) } }, `${gName(g)}만 다시 나누기`))));
+  if (gl.length) box.append(el('p', { class: 'hint', style: 'color:var(--err);margin-top:6px' }, `${gl.map(gName).join('·')}은 ${MAX_TRIES}번을 모두 사용했어요.` + (gl.length < gs.length ? ' 남은 쪽만 다시 나눌 수 있어요.' : ' 아래 기록 중에서 한 가지를 선택해 주세요.')));
+}
 // 짠 팀 안 기록: 안마다 명단을 보여주고 한 가지를 선택
 function planLines(pl) {
   const out = [];
@@ -936,11 +986,11 @@ function renderTeamHistory() {
   const box = $('#teamHistory'); box.innerHTML = '';
   const r = roundOf(); if (!r || !r.plans.length) return;
   box.append(el('h2', { style: 'font-size:17px;margin:8px 0 0' }, '짠 기록'),
-    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 회차에 짠 안 ${r.plans.length}개가 기록돼 있어요.` : `${r.plans.length}번 짰어요 (최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
+    el('p', { class: 'mute', style: 'margin:-6px 0 0' }, canEdit() ? `이 회차에 짠 안 ${r.plans.length}개가 기록돼 있어요.` : `사용한 횟수: ${attendGens().map(g => `${gName(g)} ${usedTeams(r, g)}번`).join(' · ')} (각 최대 ${MAX_TRIES}번). 가장 좋은 안 한 가지를 선택하세요.`));
   r.plans.forEach(pl => {
     const on = pl.id === r.sel;
     box.append(el('div', { class: 'rec' + (on ? ' sel' : '') },
-      el('div', { class: 'rh' }, el('div', {}, el('span', { class: 'rn' }, pl.no + '안'), ' ', el('span', { class: 'rmeta' }, `${fmtTime(pl.at)} · ${pl.by}`)),
+      el('div', { class: 'rh' }, el('div', {}, el('span', { class: 'rn' }, pl.no + '안'), ' ', el('span', { class: 'rmeta' }, `${fmtTime(pl.at)} · ${pl.by}${pl.note ? ' · ' + pl.note : ''}`)),
         on ? el('span', { class: 'selbadge' }, '✓ 선택됨') : el('button', { class: 'btn sm', on: { click: () => selectTeamPlan(pl.id) } }, '이 안으로 선택')),
       ...planLines(pl)));
   });
