@@ -451,16 +451,20 @@ function teamScore(players) {
 
 // 1) 한 성별의 참석자를 V/Q로 나누기
 //    무작위 시작 → V/Q 사이 맞교환으로 점수가 오르는 동안 개선 (여러 번 반복) → 최고점 후보 중 무작위 선택
-function splitTeams(players, starts = 40) {
+// 팀 나누기. avoid: 이전 안들의 [V키들, Q키들]. 첫 안은 희망 분산이 가장 좋은 조합,
+// 다시 나눌 때는 이전 안들과 멤버가 minMove명 이상 달라지는 조합 중 점수가 가장 좋은 쪽에서 고른다
+function splitTeams(players, avoid = []) {
   const n = players.length;
   if (n === 0) return { V: [], Q: [] };
-  const EPS = 1e-9;
-  let best = -Infinity, cands = [];
-  for (let t = 0; t < starts; t++) {
-    const s = shuffle(players);
-    const sizeA = n % 2 === 0 ? n / 2 : (Math.random() < 0.5 ? Math.ceil(n / 2) : Math.floor(n / 2));
-    let A = s.slice(0, sizeA), B = s.slice(sizeA);
-    let cur = teamScore(A) + teamScore(B);
+  const EPS = 1e-9, kf = p => p.key || p.name;
+  const sizeA = () => n % 2 === 0 ? n / 2 : (Math.random() < 0.5 ? Math.ceil(n / 2) : Math.floor(n / 2));
+  const pool = [], seen = new Set();
+  const sig = A => { const ks = A.map(kf).sort().join('|'); return ks; };
+  const add = (A, B, sc) => { const k = sig(A), k2 = sig(B); if (seen.has(k) || seen.has(k2)) return; seen.add(k); pool.push({ A, B, sc }); };
+  for (let t = 0; t < 60; t++) {
+    const s = shuffle(players), m = sizeA();
+    let A = s.slice(0, m), B = s.slice(m), cur = teamScore(A) + teamScore(B);
+    if (t >= 40) { add(A, B, cur); continue; }       // 무작위 조합도 후보에 넣어 다양성 확보
     for (let pass = 0; pass < 60; pass++) {
       let improved = false;
       for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) {
@@ -469,12 +473,36 @@ function splitTeams(players, starts = 40) {
         if (sc > cur + EPS) { A = A2; B = B2; cur = sc; improved = true; }
       }
       if (!improved) break;
+      }
+    add(A, B, cur);
+    // 한 번 맞바꾼 이웃 조합도 후보로
+    for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) {
+      const A2 = A.slice(), B2 = B.slice(); [A2[i], B2[j]] = [B[j], A[i]]; add(A2, B2, teamScore(A2) + teamScore(B2));
     }
-    if (cur > best + EPS) { best = cur; cands = [[A, B]]; }
-    else if (Math.abs(cur - best) <= EPS) cands.push([A, B]);
   }
-  const [A, B] = cands[Math.floor(Math.random() * cands.length)];
-  return { V: A, Q: B };
+  pool.sort((x, y) => y.sc - x.sc);
+  const best = pool[0].sc;
+  // 이전 안들과 달라진 사람 수(V/Q 이름이 바뀐 것은 같은 조합으로 본다)
+  const moved = c => {
+    if (!avoid.length) return n;
+    const ks = new Set(c.A.map(kf));
+    return Math.min(...avoid.map(([v, q]) => Math.min(
+      c.A.filter(p => !v.includes(kf(p))).length, c.A.filter(p => !q.includes(kf(p))).length)));
+  };
+  let pick = null, relaxed = false;
+  if (!avoid.length) {
+    const top = pool.filter(c => Math.abs(c.sc - best) <= EPS);
+    pick = top[Math.floor(Math.random() * top.length)];
+  } else {
+    for (let need = Math.min(Math.max(2, Math.ceil(n / 4)), Math.floor(n / 2)); need >= 1 && !pick; need--) {
+      const ok = pool.filter(c => moved(c) >= need);
+      if (ok.length) { const top = ok.slice(0, 3); pick = top[Math.floor(Math.random() * top.length)]; }
+    }
+    if (!pick) pick = pool[Math.floor(Math.random() * pool.length)];
+    relaxed = pick.sc < best - EPS;
+  }
+  const flip = Math.random() < 0.5;
+  return { V: shuffle(flip ? pick.B : pick.A), Q: shuffle(flip ? pick.A : pick.B), relaxed };
 }
 
 // 교체대기 선정: 대기 횟수 적은 사람 우선으로 코트에 (동률은 랜덤)
@@ -889,17 +917,22 @@ async function doSplit(g) {
   if (!a.length) { toast('참석 탭에서 참석자를 먼저 넣어주세요'); showTab('attend'); return false; }
   if (g && !base) g = undefined;
   if (g && !a.some(p => p.gender === g)) { toast(`${gName(g)} 참석자가 없어요`); return false; }
-  const teams = {};
+  const teams = {}, relaxedG = [];
   GORDER.forEach(x => {
     if (g && x !== g) { if (base && base.teams[x]) teams[x] = JSON.parse(JSON.stringify(base.teams[x])); return; }
-    const ps = a.filter(p => p.gender === x); if (ps.length) teams[x] = splitTeams(ps);
+    const ps = a.filter(p => p.gender === x); if (!ps.length) return;
+    const keys = new Set(ps.map(p => p.key || p.name));
+    const avoid = (roundOf() ? roundOf().plans : []).filter(pl => pl.teams[x]).map(pl => [pl.teams[x].V.map(p => p.key || p.name), pl.teams[x].Q.map(p => p.key || p.name)])
+      .filter(([v, q]) => [...v, ...q].length === keys.size && [...v, ...q].every(k => keys.has(k)));
+    const r0 = splitTeams(ps, avoid); if (r0.relaxed) relaxedG.push(x);
+    teams[x] = { V: r0.V, Q: r0.Q };
   });
   const r = R(), gens = g ? [g] : attendGens();
-  const plan = { id: uid('T'), no: (r.seq = (r.seq || 0) + 1), at: Date.now(), by: me.name, note: g ? `${gName(g)}만 다시 나눔` : '', gens, teams, setPlans: [], setSel: null, setSeq: 0 };
+  const plan = { id: uid('T'), no: (r.seq = (r.seq || 0) + 1), at: Date.now(), by: me.name, note: (g ? `${gName(g)}만 다시 나눔` : '') + (relaxedG.length ? (g ? ' · ' : '') + '멤버를 바꾸려고 희망 분산은 조금 양보함' : ''), gens, teams, setPlans: [], setSel: null, setSeq: 0 };
   r.plans.push(plan); r.sel = plan.id; trimMaster(r.plans, r.sel);
   S.quick = null; relink(); save();
   renderTeams(); renderSaved();
-  if (plan.note) toast(plan.note + '했어요');
+  if (g) toast(`${gName(g)}만 다시 나눴어요` + (relaxedG.length ? ' (멤버가 바뀌도록 희망 분산을 조금 양보했어요)' : ''));
   return true;
 }
 $('#splitBtn').addEventListener('click', () => doSplit());
