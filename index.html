@@ -403,7 +403,7 @@ const prefers = (p, i) => (p.prefs || []).includes(POS[i]);
 // 희망 포지션 반영 가중치: 정회원을 게스트보다 조금 더 우선한다.
 // 숫자가 클수록 희망을 강하게 반영 (같은 포지션 반복 감점은 6~8)
 const PREF_WEIGHT_MEMBER = 10;
-const PREF_WEIGHT_GUEST = 9;
+const PREF_WEIGHT_GUEST = 7;
 const prefWeight = p => p.guest ? PREF_WEIGHT_GUEST : PREF_WEIGHT_MEMBER;
 
 // ===== 빈자리 규칙 =====
