@@ -56,6 +56,7 @@ header.top .who{font-weight:700}
 .tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--v)}
 
 section.panel{display:flex;flex-direction:column;gap:16px}
+iframe.embed{width:100%;height:calc(100vh - 190px);min-height:640px;border:1px solid var(--line,#ddd);border-radius:12px;background:#fff}
 .card{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--line)}
 
 /* 코트 9칸: 이 앱의 중심 요소 */
@@ -294,6 +295,22 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         <div class="seg" id="quickMode"><button aria-pressed="true" data-v="pref">희망 반영</button><button aria-pressed="false" data-v="rand">희망 무시</button></div>
       </div>
       <div id="quickBox" style="display:flex;flex-direction:column;gap:16px"></div>
+    </section>
+
+    <!-- 게스트 등록 신청 / 신청 확인 (구글 설문·게시 시트를 앱 안에 띄운다) -->
+    <section class="panel" data-tab="gform">
+      <div class="row" style="justify-content:space-between">
+        <div><h2>게스트 등록 신청</h2><p class="mute">게스트로 오는 분의 정보를 여기에 입력해 주세요.</p></div>
+        <a class="btn ghost sm" id="gformOpen" target="_blank" rel="noopener">새 창에서 열기</a>
+      </div>
+      <iframe class="embed" id="gformFrame" title="게스트 등록 신청" loading="lazy"></iframe>
+    </section>
+    <section class="panel" data-tab="gview">
+      <div class="row" style="justify-content:space-between">
+        <div><h2>게스트 신청 확인</h2><p class="mute">신청된 게스트 현황이에요. 방금 낸 신청은 반영까지 잠시 걸릴 수 있어요.</p></div>
+        <div class="row"><button class="btn ghost sm" id="gviewReload">새로고침</button><a class="btn ghost sm" id="gviewOpen" target="_blank" rel="noopener">새 창에서 열기</a></div>
+      </div>
+      <iframe class="embed" id="gviewFrame" title="게스트 신청 확인" loading="lazy"></iframe>
     </section>
 
     <!-- 회원 관리 -->
@@ -739,12 +756,17 @@ $('#logoutBtn').addEventListener('click', async () => {
 async function loadMembers() { members = await rpc('vq_admin_list', { p_code: code }); }
 
 // ===== 화면 전환 =====
-const TABS = [['me', '내 포지션'], ['attend', '참석'], ['team', '팀'], ['sets', '세트 배치'], ['quick', '즉석 배정'], ['members', '회원 관리']];
+// 앱 안에 띄우는 구글 링크 (바꾸려면 여기만 고치면 된다)
+const GUEST_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfqIBKnqSBh1bsjAvC18byF2QTy2JeV34QR_ypkx0FhR30ibQ/viewform';
+const GUEST_VIEW_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-GE0U3C1_Wn2kvW4ehBZ1BYQZGz0jYJjD50J_jxIF0YtzheVtlfBQ69lUfmLOeEUTwLn6j3NdsOR/pubhtml?gid=129857276&single=true';
+const GUEST_VIEW_EMBED = GUEST_VIEW_URL + '&widget=true&headers=false';   // 앱 안에서는 위쪽 머리글을 줄인 형태로
+const GUEST_TABS = [['gform', '게스트 등록 신청'], ['gview', '게스트 신청 확인']];
+const TABS = [['me', '내 포지션'], ['attend', '참석'], ['team', '팀'], ['sets', '세트 배치'], ['quick', '즉석 배정'], ['members', '회원 관리'], ...GUEST_TABS];
 function enterApp() {
   $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');
   $('#whoName').textContent = me.name + ' 님';
   $('#whoRole').textContent = me.is_admin ? '관리자' : '';
-  const tabs = me.is_admin ? TABS : TABS.slice(0, 1);
+  const tabs = me.is_admin ? TABS : [TABS[0], ...GUEST_TABS];
   $('#tabs').innerHTML = '';
   if (tabs.length > 1) tabs.forEach(([id, label]) => $('#tabs').append(el('button', { role: 'tab', 'data-id': id, on: { click: () => showTab(id) } }, label)));
   renderMine();
@@ -758,8 +780,16 @@ function showTab(id) {
   if (me.is_admin) store.set('vq_tab', id);
   if (me.is_admin && id === 'team') renderTeams();
   if (me.is_admin && id === 'sets') loadPubInfo();
+  if (id === 'gform') loadEmbed('gformFrame', GUEST_FORM_URL + '?embedded=true', 'gformOpen', GUEST_FORM_URL);
+  if (id === 'gview') loadEmbed('gviewFrame', GUEST_VIEW_EMBED, 'gviewOpen', GUEST_VIEW_URL);
   window.scrollTo(0, 0);
 }
+// 처음 열 때 한 번만 불러온다 (탭을 오가도 입력하던 설문이 지워지지 않는다)
+function loadEmbed(frameId, src, linkId, openUrl) {
+  const f = document.getElementById(frameId); if (!f.getAttribute('src')) f.setAttribute('src', src);
+  document.getElementById(linkId).href = openUrl;
+}
+$('#gviewReload').addEventListener('click', () => { const f = $('#gviewFrame'); f.setAttribute('src', GUEST_VIEW_EMBED); toast('다시 불러오는 중이에요'); });
 
 // ===== 내 포지션 =====
 function renderMine() {
