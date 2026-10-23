@@ -82,6 +82,12 @@ textarea{min-height:96px;resize:vertical}
 textarea:focus,.inp:focus{border-color:var(--v);outline:none}
 
 .count{font-variant-numeric:tabular-nums;font-weight:800}
+table.cnt{width:100%;border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums}
+table.cnt th,table.cnt td{padding:7px 4px;text-align:right;font-weight:600;border-bottom:1px solid var(--line,#e5e5e5)}
+table.cnt thead th{font-size:.85em;font-weight:500;color:var(--mute,#777)}
+table.cnt tbody th{text-align:left;font-weight:600}
+table.cnt td:last-child{font-weight:800}
+table.cnt tr.tot th,table.cnt tr.tot td{font-weight:800;border-bottom:0;border-top:2px solid var(--line,#ccc)}
 
 /* 팀 */
 .teams{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
@@ -238,8 +244,19 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         </div>
       </div>
       <div class="card">
+        <strong>참석 현황</strong>
+        <table class="cnt" aria-label="참석 인원">
+          <thead><tr><th></th><th>여</th><th>남</th><th>합계</th></tr></thead>
+          <tbody>
+            <tr><th>정회원</th><td id="cntMemF">0</td><td id="cntMemM">0</td><td id="cntMem">0</td></tr>
+            <tr><th>게스트</th><td id="cntGstF">0</td><td id="cntGstM">0</td><td id="cntGst">0</td></tr>
+            <tr class="tot"><th>전체 참석</th><td id="cntF">0</td><td id="cntM">0</td><td id="cntAll">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
         <div class="row" style="justify-content:space-between;margin-bottom:8px">
-          <strong>회원</strong><span class="mute">여 <span class="count" id="cntF">0</span> · 남 <span class="count" id="cntM">0</span></span>
+          <strong>정회원</strong><span class="mute">여 <span class="count" id="hdMemF">0</span> · 남 <span class="count" id="hdMemM">0</span> · 총 <span class="count" id="hdMem">0</span></span>
         </div>
         <p class="mute" style="margin-bottom:6px">여자</p>
         <div class="chips" id="memF"></div>
@@ -247,7 +264,7 @@ label.ck{display:flex;gap:8px;align-items:center;font-size:15px}
         <div class="chips" id="memM"></div>
       </div>
       <div class="card">
-        <strong>게스트</strong>
+        <div class="row" style="justify-content:space-between"><strong>게스트</strong><span class="mute">여 <span class="count" id="hdGstF">0</span> · 남 <span class="count" id="hdGstM">0</span> · 총 <span class="count" id="hdGst">0</span></span></div>
         <p class="mute" style="margin:4px 0 8px">이름, 성별, 희망 포지션 순서로 한 줄에 한 명씩 붙여넣으세요. 이름이 '게스트'면 게스트1, 게스트2처럼 번호를 붙여요.</p>
         <textarea id="guestPaste" placeholder="게스트&#9;남자&#9;라이트, 앞차, 백차&#10;홍길동&#9;여자&#9;세터"></textarea>
         <div class="row" style="margin-top:8px"><button class="btn sm" id="guestApply">게스트 추가</button></div>
@@ -854,8 +871,13 @@ function renderAttend() {
   $('#unmatched').querySelectorAll('button').forEach(b => { if (gn.has(b.textContent.replace(' +', ''))) b.remove(); });
   $('#unmatchedBox').classList.toggle('hidden', !$('#unmatched').children.length);
   const a = attendees();
-  $('#cntM').textContent = a.filter(p => p.gender === '남').length;
-  $('#cntF').textContent = a.filter(p => p.gender === '여').length;
+  const c = (guest, g) => a.filter(p => !!p.guest === guest && (!g || p.gender === g)).length;
+  const set = (id, v) => { $('#' + id).textContent = v; };
+  set('cntMemF', c(false, '여')); set('cntMemM', c(false, '남')); set('cntMem', c(false));
+  set('cntGstF', c(true, '여')); set('cntGstM', c(true, '남')); set('cntGst', c(true));
+  set('cntF', a.filter(p => p.gender === '여').length); set('cntM', a.filter(p => p.gender === '남').length); set('cntAll', a.length);
+  set('hdMemF', c(false, '여')); set('hdMemM', c(false, '남')); set('hdMem', c(false));
+  set('hdGstF', c(true, '여')); set('hdGstM', c(true, '남')); set('hdGst', c(true));
 }
 
 // 게스트 붙여넣기: "이름 성별 포지션..."
