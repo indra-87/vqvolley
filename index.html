@@ -836,11 +836,12 @@ const sexName = g => g === '여' ? '여자' : '남자';
 function renderGuestForm(edit) {
   gfEdit = edit || null;
   $('#gfTitle').textContent = edit ? '게스트 수정' : '게스트 등록';
-  $('#gfDesc').textContent = edit ? `${edit.name} 님의 신청 내용을 고쳐요.` : "함께 오는 게스트를 등록하면 '게스트 신청 확인' 탭에서 모든 회원이 볼 수 있어요.";
+  $('#gfDesc').textContent = edit ? `${edit.name} 님의 선호 포지션과 비고만 고칠 수 있어요. 이름이나 성별을 바꾸려면 신청을 취소하고 다시 등록해 주세요.` : "함께 오는 게스트를 등록하면 '게스트 신청 확인' 탭에서 모든 회원이 볼 수 있어요.";
   $('#gfInviter').textContent = edit ? edit.inviter_name : me.name;
   $('#gfName').value = edit ? edit.name : ''; $('#gfNote').value = edit ? edit.note : ''; $('#gfErr').textContent = '';
   gfGender = edit ? edit.gender : null; gfSel.length = 0; if (edit) gfSel.push(...edit.prefs);
-  $('#gfGender').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === gfGender)));
+  $('#gfGender').querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.v === gfGender)); b.disabled = !!edit; });
+  $('#gfName').disabled = !!edit;   // 선착순 순서를 이용한 이름 바꿔치기를 막기 위해 수정 중에는 이름·성별을 잠근다
   $('#gfSubmit').textContent = edit ? '수정 저장' : '게스트 등록';
   $('#gfCancel').classList.toggle('hidden', !edit);
   const sum = () => { $('#gfSummary').textContent = gfSel.length ? '선택: ' + prefText(gfSel) : '상관없음 (고르지 않았어요)'; };
@@ -851,22 +852,22 @@ $('#gfGender').addEventListener('click', e => {
   $('#gfGender').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
 });
 $('#gfSubmit').addEventListener('click', async () => {
-  const name = $('#gfName').value.trim(), err = $('#gfErr');
+  const name = gfEdit ? gfEdit.name : $('#gfName').value.trim(), err = $('#gfErr');
   err.textContent = !name ? '게스트 이름을 넣어주세요.' : !gfGender ? '성별을 선택해 주세요.' : '';
   if (err.textContent) return;
-  const args = { p_code: code, p_name: name, p_gender: gfGender, p_prefs: gfSel.slice(), p_note: $('#gfNote').value.trim() };
+  const args = { p_code: code, p_prefs: gfSel.slice(), p_note: $('#gfNote').value.trim() };
   $('#gfSubmit').disabled = true;
   try {
     if (gfEdit) {
       const old = gfEdit, wasIn = adopted(old);
       await rpc('vq_guest_apply_update', { ...args, p_id: old.id });
-      if (wasIn) {   // 이미 참석 명단에 반영해 둔 게스트면 명단 쪽도 같이 고친다
+      if (wasIn) {   // 이미 참석 명단에 반영해 둔 게스트면 명단의 희망 포지션도 같이 고친다
         const g = S.guests.find(x => x.name === old.name && x.gender === old.gender);
-        if (g) { Object.assign(g, { name, gender: gfGender, prefs: gfSel.slice() }); save(); renderAttend(); }
+        if (g) { g.prefs = gfSel.slice(); save(); renderAttend(); }
       }
       toast(`${name} 님 신청을 수정했어요`);
     } else {
-      await rpc('vq_guest_apply_add', args); toast(`${name} 님을 등록했어요`);
+      await rpc('vq_guest_apply_add', { ...args, p_name: name, p_gender: gfGender }); toast(`${name} 님을 등록했어요`);
     }
     renderGuestForm(); showTab('gview');
   } catch (e) { err.textContent = e.message; }
