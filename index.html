@@ -901,6 +901,7 @@ function renderGuestApps() {
       a.note ? el('div', { class: 'gnote' }, a.note) : null,
       me.is_admin || a.mine ? el('div', { class: 'gact' },
         me.is_admin && !done ? el('button', { class: 'btn sm', type: 'button', on: { click: () => adoptGuest(a) } }, '명단 반영') : null,
+        me.is_admin && done ? el('button', { class: 'btn ghost sm', type: 'button', on: { click: () => unadoptGuest(a) } }, '명단 반영 취소') : null,
         el('button', { class: 'btn ghost sm', type: 'button', on: { click: () => startGuestEdit(a) } }, '수정'),
         el('button', { class: 'btn ghost sm warn', type: 'button', on: { click: () => deleteGuestApp(a) } }, me.is_admin && !a.mine ? '삭제' : '신청 취소')) : null));
   });
@@ -908,6 +909,15 @@ function renderGuestApps() {
 function adoptGuest(a, quiet) {
   upsertGuest({ name: a.name, gender: a.gender, prefs: a.prefs.slice() });
   if (!quiet) { renderAttend(); renderGuestApps(); toast(`${a.name} 님을 참석 명단에 반영했어요`); }
+}
+// 참석 명단에서만 빼고 신청은 그대로 둔다 (신청 삭제와 다름)
+function unadoptGuest(a) {
+  const g = S.guests.find(x => x.name === a.name && x.gender === a.gender); if (!g) return;
+  const r = roundOf();
+  const inTeams = r && r.plans.some(pl => Object.values(pl.teams).some(t => ['V', 'Q'].some(sd => t[sd].some(x => x.key === g.key))));
+  if (inTeams && !confirm(`${a.name} 님이 이미 나눈 팀에 들어 있어요.\n참석 명단과 팀에서 모두 뺄까요? (신청은 그대로 남아요)`)) return;
+  dropPlayer(g.key); renderAttend(); renderTeams(); renderSaved(); renderGuestApps();
+  toast(`${a.name} 님을 참석 명단에서 뺐어요 (신청은 그대로예요)`);
 }
 $('#gvAdoptAll').addEventListener('click', () => {
   const todo = (GA || []).filter(a => !adopted(a)); if (!todo.length) return;
@@ -950,13 +960,11 @@ const ATTEND_ALIASES = [
   ['Indra주최자', '정서준'],
   ['김혜은 선생님', '김혜은'],
   ['백목련 선생님', '백목련'],
-  ['소정섭 선생님', '소정섭'],
   ['송혜민 사서선생님', '송혜민'],
   ['양현미 선생님', '양현미'],
   ['윤영혁 선생님', '윤영혁'],
   ['이현민 선생님', '이현민'],
   ['장성국 선생님', '장성국'],
-  ['고창석 선생님', '고창석'],
   ['김균태 선생님', '김균태'],
   ['김용석 선생님', '김용석'],
   ['김용신 선생님', '김용신'],
@@ -969,7 +977,6 @@ const ATTEND_ALIASES = [
   ['오향화 영양선생님', '오향화'],
   ['은금호 선생님', '은금호'],
   ['정행운 선생님', '정행운'],
-  ['지미현 선생님', '지미현'],
   ['최인섭선생님', '최인섭'],
   ['한상신 선생님', '한상신'],
   ['김석준 선생님', '김석준'],
@@ -996,22 +1003,26 @@ const ATTEND_ALIASES = [
   ['Indra', '정서준'],
   ['주최자', '정서준']
 ];
+// 탈퇴한 회원: 단톡방 명단에 남아 있어도 참석·알 수 없는 이름으로 잡지 않고 무시한다
+const ATTEND_IGNORE = new Set(['소정섭', '고창석', '지미현']);
+// 복사한 글자 모양 통일: 분해된 한글(맥·폰 복사)은 합치고, 전각 문자(～)는 일반 문자로, 눈에 안 보이는 문자는 지운다
+const cleanText = t => String(t).normalize('NFKC').replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
 const escRe = c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // 글자 사이 공백은 있어도 없어도 같은 이름으로 보고, 긴 이름부터 찾는다
-const ALIAS_RES = ATTEND_ALIASES.map(([from, to]) => ({ to, re: new RegExp([...from.replace(/\s+/g, '')].map(escRe).join('\\s*'), 'gi') }))
+const ALIAS_RES = ATTEND_ALIASES.map(([from, to]) => ({ to, re: new RegExp([...cleanText(from).replace(/\s+/g, '')].map(escRe).join('\\s*'), 'gi') }))
   .sort((a, b) => b.re.source.length - a.re.source.length);
 const TITLE_TAIL = /(사서|영양)?선생님$|교무행정사님$|교감$|님$/;
 function parseAttendance(text) {
   const names = members.filter(m => m.active).map(m => m.name).sort((a, b) => b.length - a.length);
   const found = new Set(), unknown = new Set();   // Set이라 같은 사람이 여러 번 나와도 한 번만 센다
-  text.split(/\n/).forEach(line => {
+  cleanText(text).split(/\n/).forEach(line => {
     if (/불참|취소/.test(line)) return;
     ALIAS_RES.forEach(({ re, to }) => {
       line = line.replace(re, () => { if (names.includes(to)) found.add(to); else unknown.add(to); return ' '; });
     });
     (line.match(/[가-힣]{2,}/g) || []).forEach(raw => {
       const tok = raw.replace(TITLE_TAIL, '') || raw;
-      if (tok.length < 2 || STOP.has(raw) || STOP.has(tok)) return;
+      if (tok.length < 2 || STOP.has(raw) || STOP.has(tok) || ATTEND_IGNORE.has(tok)) return;
       const hit = names.find(n => tok === n || tok.startsWith(n));
       if (hit) found.add(hit);
       else if (tok.length <= 4 && !POS.includes(tok)) unknown.add(tok);
@@ -1301,13 +1312,17 @@ function movePlayer(g, from, key) {
 }
 function removePlayer(g, side, key) {
   if (!confirm('팀과 참석 명단에서 뺄까요?')) return;
+  dropPlayer(key); renderTeams(); renderAttend(); renderSaved();
+}
+// 참석 명단과, 이 회차에 이미 나눈 모든 팀 안에서 한 사람을 뺀다
+function dropPlayer(key) {
   const r = roundOf();    // 이 회차에 기록된 모든 안에서 뺀다
   (r ? r.plans : []).forEach(pl => Object.values(pl.teams).forEach(t => ['V', 'Q'].forEach(sd => {
     const n = t[sd].length; t[sd] = t[sd].filter(x => x.key !== key); if (t[sd].length !== n) invalidateSets(pl);
   })));
   S.attend = S.attend.filter(k => k !== key);
   S.guests = S.guests.filter(x => x.key !== key);
-  relink(); save(); renderTeams(); renderAttend(); renderSaved();
+  relink(); save();
 }
 function addLoose(p) {
   if (!S.teams[p.gender]) S.teams[p.gender] = { V: [], Q: [] };
