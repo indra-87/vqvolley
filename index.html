@@ -944,18 +944,80 @@ function renderMine() {
 }
 
 // ===== 참석 =====
-const STOP = new Set(['참석','불참','오후','오전','늦참','지각','게스트','명단','배구','남자','여자','회원','정회원','오늘','투표','완료','확인','추가','취소','조퇴','예정']);
+const STOP = new Set(['참석','불참','오후','오전','늦참','지각','게스트','명단','배구','남자','여자','회원','정회원','오늘','투표','완료','확인','추가','취소','조퇴','예정','선생님','사서선생님','영양선생님','교무행정사님','교감','교감선생님','주최자']);
+// 단톡방 표시 이름(앞) → 회원 이름(뒤). 붙여넣은 글에 앞쪽 이름이 있으면 뒤쪽 이름으로 인식한다.
+const ATTEND_ALIASES = [
+  ['Indra주최자', '정서준'],
+  ['김혜은 선생님', '김혜은'],
+  ['백목련 선생님', '백목련'],
+  ['소정섭 선생님', '소정섭'],
+  ['송혜민 사서선생님', '송혜민'],
+  ['양현미 선생님', '양현미'],
+  ['윤영혁 선생님', '윤영혁'],
+  ['이현민 선생님', '이현민'],
+  ['장성국 선생님', '장성국'],
+  ['고창석 선생님', '고창석'],
+  ['김균태 선생님', '김균태'],
+  ['김용석 선생님', '김용석'],
+  ['김용신 선생님', '김용신'],
+  ['김이석 선생님', '김이석'],
+  ['박경령 선생님', '박경령'],
+  ['박재영 선생님', '박재영'],
+  ['백설희 선생님', '백설희'],
+  ['서영빈 선생님', '서영빈'],
+  ['양유선생님', '양유'],
+  ['오향화 영양선생님', '오향화'],
+  ['은금호 선생님', '은금호'],
+  ['정행운 선생님', '정행운'],
+  ['지미현 선생님', '지미현'],
+  ['최인섭선생님', '최인섭'],
+  ['한상신 선생님', '한상신'],
+  ['김석준 선생님', '김석준'],
+  ['문선영 선생님', '문선영'],
+  ['박민영 선생님', '박민영'],
+  ['박지영 교무행정사님', '박지영'],
+  ['송솔 선생님', '송솔'],
+  ['신민수 선생님', '신민수'],
+  ['양혜원 선생님', '양혜원'],
+  ['이다슬 선생님', '이다슬'],
+  ['이혜숙 선생님', '이혜숙'],
+  ['임효정 선생님', '임효정'],
+  ['전은현 교감 선생님', '전은현'],
+  ['정아름 선생님', '정아름'],
+  ['최대영 선생님', '최대영'],
+  ['허미진 영양선생님', '허미진'],
+  ['홍배근 선생님', '홍배근'],
+  ['황두연선생님', '황두연'],
+  ['주미 선생님', '주미'],
+  ['조하운 선생님', '조하운'],
+  ['한선희 선생님', '한선희'],
+  ['지혜당~♡깡준서준영♡', '김지혜'],
+  ['박지은 선생님', '박지은'],
+  ['Indra', '정서준'],
+  ['주최자', '정서준']
+];
+const escRe = c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// 글자 사이 공백은 있어도 없어도 같은 이름으로 보고, 긴 이름부터 찾는다
+const ALIAS_RES = ATTEND_ALIASES.map(([from, to]) => ({ to, re: new RegExp([...from.replace(/\s+/g, '')].map(escRe).join('\\s*'), 'gi') }))
+  .sort((a, b) => b.re.source.length - a.re.source.length);
+const TITLE_TAIL = /(사서|영양)?선생님$|교무행정사님$|교감$|님$/;
 function parseAttendance(text) {
   const names = members.filter(m => m.active).map(m => m.name).sort((a, b) => b.length - a.length);
-  const found = new Set(), unknown = new Set();
+  const found = new Set(), unknown = new Set();   // Set이라 같은 사람이 여러 번 나와도 한 번만 센다
   text.split(/\n/).forEach(line => {
     if (/불참|취소/.test(line)) return;
-    (line.match(/[가-힣]{2,}/g) || []).forEach(tok => {
+    ALIAS_RES.forEach(({ re, to }) => {
+      line = line.replace(re, () => { if (names.includes(to)) found.add(to); else unknown.add(to); return ' '; });
+    });
+    (line.match(/[가-힣]{2,}/g) || []).forEach(raw => {
+      const tok = raw.replace(TITLE_TAIL, '') || raw;
+      if (tok.length < 2 || STOP.has(raw) || STOP.has(tok)) return;
       const hit = names.find(n => tok === n || tok.startsWith(n));
       if (hit) found.add(hit);
-      else if (tok.length <= 4 && !STOP.has(tok) && !POS.includes(tok)) unknown.add(tok);
+      else if (tok.length <= 4 && !POS.includes(tok)) unknown.add(tok);
     });
   });
+  unknown.forEach(n => { if (found.has(n)) unknown.delete(n); });
   return { found: [...found], unknown: [...unknown] };
 }
 $('#attendApply').addEventListener('click', () => {
